@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 package com.tailscale.mclink;
 
 import net.minecraft.client.gui.DrawContext;
@@ -8,12 +15,20 @@ import net.minecraft.text.Text;
 
 public final class JoinRemoteScreen extends Screen {
     private final Screen parent;
+    private final String invitation;
+    private boolean autoStarted;
     private TextFieldWidget invite;
     private ButtonWidget connect;
     private Text status = Text.empty();
+
     public JoinRemoteScreen(Screen parent) {
+        this(parent, null);
+    }
+
+    public JoinRemoteScreen(Screen parent, String invitation) {
         super(Text.translatable("mclink.join"));
         this.parent = parent;
+        this.invitation = invitation;
     }
 
     @Override
@@ -22,14 +37,19 @@ public final class JoinRemoteScreen extends Screen {
                 Text.translatable("mclink.invite"));
         invite.setMaxLength(8192);
         invite.setPlaceholder(Text.translatable("mclink.invite_hint"));
-        invite.setChangedListener(value -> connect.active = value.trim().startsWith("mcl1_"));
         addDrawableChild(invite);
         connect = addDrawableChild(ButtonWidget.builder(Text.translatable("mclink.connect"), b -> begin())
                 .dimensions(width / 2 - 102, height / 2 + 12, 100, 20).build());
         connect.active = false;
+        invite.setChangedListener(value -> connect.active = value.trim().startsWith("mcl1_"));
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.cancel"), b -> close())
                 .dimensions(width / 2 + 2, height / 2 + 12, 100, 20).build());
         setInitialFocus(invite);
+        if (invitation != null && !autoStarted) {
+            autoStarted = true;
+            invite.setText(invitation);
+            begin();
+        }
     }
 
     private void begin() {

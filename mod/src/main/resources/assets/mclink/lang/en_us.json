@@ -7,5 +7,6 @@
   "mclink.sharing": "World is shared remotely",
   "mclink.copy": "Copy Invitation",
   "mclink.stop": "Stop Sharing",
-  "mclink.connect": "Connect"
+  "mclink.connect": "Connect",
+  "mclink.server.label": "Connected via Tailcat tunnel"
 }
