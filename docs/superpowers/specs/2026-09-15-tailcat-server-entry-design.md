@@ -125,12 +125,20 @@ directly, and the screen already exposes `getServerList()`.
 
 ## Client: join flow
 
-One click on the entry (any of the join affordances) calls
-`ScreenState.join(client, multiplayerScreen, invite)` — the same method the
-paste-screen uses, already signature-ready for an invitation string. The vanilla
-`ConnectScreen` loading screen provides the "connecting" feedback. `ScreenState`
-and `JoinRemoteScreen` are otherwise unchanged; `JoinRemoteScreen` remains the
-manual path behind the title-screen Connect button.
+One click on the entry (any of the join affordances) opens
+`JoinRemoteScreen` with the invitation **prefilled and auto-joining**: a new
+constructor `JoinRemoteScreen(Screen parent, String invitation)` fills the
+text field and immediately runs the existing `begin()` flow
+(`ScreenState.join` → helper → vanilla `ConnectScreen` loading screen). The
+auto-start fires once, on the first `init()` (not on resizes).
+
+The existing no-arg constructor is unchanged, so the title-screen Connect
+button keeps the manual paste flow. Routing through the screen (instead of
+calling `ScreenState.join` directly from the mixin) keeps
+`ScreenState.tick`'s session-lifetime guard correct — it only keeps a JOIN
+session alive while `ConnectScreen` or `JoinRemoteScreen` is on screen — and
+reuses the screen's existing error display (message + retryable Connect
+button) for helper failures.
 
 ## Server: auto-hosting
 
