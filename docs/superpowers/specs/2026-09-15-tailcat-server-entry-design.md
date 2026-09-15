@@ -30,11 +30,19 @@ configured servers, client-side commands, Realms.
 File: `<gamedir>/config/mclink.json`
 
 ```json
-{ "name": "Tailcat World", "tailcat": "mcl1_..." }
+{ "name": "Tailcat World", "tailcat": "mcl1_...", "icon": "tailcat-world.png" }
 ```
 
 - `name` — display name of the list entry. Required, non-empty after trim;
   fallback default `Tailcat Server` if empty.
+- `icon` (optional) — filename of a 64x64 PNG, resolved relative to
+  `<gamedir>/config/`. The modpack ships the icon file next to the config so
+  the entry carries the server's icon. Loaded and validated with config:
+  readable file, valid PNG metadata, dimensions exactly 64x64 (the same
+  requirement the vanilla `WorldIcon.load` enforces). Path is normalized and
+  must stay inside the config directory. Missing file, non-PNG, or wrong
+  dimensions → log a warning and fall back to the default unknown-server
+  icon; the entry is still shown.
 - `tailcat` — full `mcl1_...` invitation **or** a bare `tc...` token. A bare token
   is wrapped into the invitation envelope on the Java side:
   `mcl1_` + Base64url-no-padding of the exact JSON string
@@ -70,10 +78,14 @@ A `ServerInfo` with:
 - pre-set: `setStatus(SUCCESSFUL)`, `ping = 1` (green 5-bar icon),
   `label = Text.translatable("mclink.server.label")`
   ("Connected via Tailcat tunnel"), `playerCountLabel = Text.empty()`,
-  `playerListSummary` stays the default empty list
+  `playerListSummary` stays the default empty list, and
+  `setFavicon(<config icon bytes>)` when a valid icon was loaded
 
-It renders exactly like an online vanilla server (default unknown-server icon, no
-favicon). `WorldIcon.forServer` only hashes the address — verified safe.
+It renders exactly like an online vanilla server. The `ServerEntry.render`
+favicon block calls `uploadFavicon(server.getFavicon())` on the first render,
+which uploads the bytes through `WorldIcon` — so a pre-set favicon displays
+with no extra mixins. (Without a config icon, the default unknown-server icon
+shows.) `WorldIcon.forServer` only hashes the address — verified safe.
 `MultiplayerServerListPinger` is never invoked for it.
 
 ### Mixins (all client-side, added to `mclink.mixins.json`)
@@ -170,6 +182,7 @@ name). Unversioned file name `state.json` so mod updates keep working state.
 | Failure | Behavior |
 |---|---|
 | Client config missing/invalid | Entry hidden, mod inert, no errors |
+| Config icon missing/invalid | Warning log; entry shown with default unknown-server icon |
 | Helper join fails (client) | Back to multiplayer screen + chat message with root error |
 | Helper host fails at server start (DERP unreachable, etc.) | Warning log; server runs normally without tailcat |
 | Saved region gone from DERP map | Warn + reselect region + rewrite state; invitation string changes (operator re-shares) |
@@ -184,6 +197,8 @@ name). Unversioned file name `state.json` so mod updates keep working state.
     rejects garbage.
   - `TailcatConfig.load`: valid, bare-token, missing file, invalid JSON, wrong
     types (table-driven, temp dirs).
+  - Icon loading: valid 64x64 PNG → bytes returned; 32x32, non-PNG bytes,
+    missing file, and path traversal (`../`) all → null + no exception.
 - Go unit tests (`helper/`):
   - state round-trip (write/read, key decodes to the same public key, region
     preserved); corrupt file → error; missing file → create; 0600 perms.
@@ -217,3 +232,7 @@ name). Unversioned file name `state.json` so mod updates keep working state.
   delete `state.json` and restart).
 - No multiple configured servers; the config holds exactly one.
 - No client-side display of the config path or errors beyond the chat message.
+- No live query of the server over the tunnel (real-time MOTD, player count,
+  or runtime-fetched `server-icon.png`). The icon is shipped with the config.
+  A background helper on the multiplayer screen would be required; candidate
+  for future work.
