@@ -6,8 +6,11 @@
   "description": "Share Minecraft worlds through Tailcat's userspace WireGuard transport.",
   "authors": ["Tailscale"],
   "license": "BSD-3-Clause",
-  "environment": "client",
-  "entrypoints": { "client": ["com.tailscale.mclink.McLinkClient"] },
+  "environment": "*",
+  "entrypoints": {
+    "client": ["com.tailscale.mclink.McLinkClient"],
+    "server": ["com.tailscale.mclink.McLinkServer"]
+  },
   "mixins": ["mclink.mixins.json"],
   "depends": {
     "fabricloader": ">=0.16.10",
