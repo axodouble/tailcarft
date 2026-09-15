@@ -1,3 +1,8 @@
+// Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 package main
 
 import (
@@ -16,6 +21,7 @@ import (
 	"time"
 
 	"github.com/tailscale/mclink/helper/internal/invite"
+	"github.com/tailscale/mclink/helper/internal/state"
 	"github.com/tailscale/tailcat"
 	"tailscale.com/types/key"
 	"tailscale.com/wgengine/filter"
@@ -78,6 +84,7 @@ func runHost(ctx context.Context, out *eventWriter, args []string) (string, erro
 	fs := flag.NewFlagSet("host", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	target := fs.String("target", "", "loopback Minecraft address")
+	stateFile := fs.String("state-file", "", "file to persist the host identity (node key and DERP region)")
 	if err := fs.Parse(args); err != nil {
 		return "usage", err
 	}
@@ -88,15 +95,37 @@ func runHost(ctx context.Context, out *eventWriter, args []string) (string, erro
 		return "usage", err
 	}
 
+	dm, err := fetchDerpMap(ctx)
+	if err != nil {
+		return "derp_unreachable", err
+	}
+
 	priv := key.NewNode()
-	ci := tailcat.ConnInfo{RegionID: -1}
-	if err := ci.Expand(ctx, tailcat.ExpandForServer); err != nil {
-		return "derp_unreachable", fmt.Errorf("select DERP region: %w", err)
+	savedRegion := 0
+	if *stateFile != "" {
+		st, lerr := state.Load(*stateFile)
+		switch {
+		case lerr == nil:
+			priv, savedRegion = st.Key, st.Region
+		case errors.Is(lerr, os.ErrNotExist):
+			log.Printf("no Tailcat state at %s; generating a new identity", *stateFile)
+		default:
+			log.Printf("ignoring unreadable Tailcat state at %s: %v", *stateFile, lerr)
+		}
 	}
-	if len(ci.Region) != 1 {
-		return "derp_unreachable", errors.New("DERP selection returned no region")
+
+	region := dm.Regions[savedRegion]
+	if region == nil {
+		if savedRegion != 0 {
+			log.Printf("Tailcat region %d is no longer in the DERP map; selecting a new one", savedRegion)
+		}
+		best, perr := tailcat.PickBestRegion(ctx, dm)
+		if perr != nil {
+			log.Printf("Tailcat netcheck failed: %v; picking a random region", perr)
+			best = 0
+		}
+		region = selectRegion(dm, best)
 	}
-	region := ci.Region[0]
 	server, err := tailcat.NewServer(priv, log.Printf, region)
 	if err != nil {
 		return "helper_failed", fmt.Errorf("create Tailcat server: %w", err)
@@ -107,6 +136,11 @@ func runHost(ctx context.Context, out *eventWriter, args []string) (string, erro
 	encoded, err := invite.New(string(publicCI.ConnBlob())).Encode()
 	if err != nil {
 		return "helper_failed", err
+	}
+	if *stateFile != "" {
+		if serr := state.Save(*stateFile, &state.File{Key: priv, Region: region.RegionID, Invite: encoded}); serr != nil {
+			log.Printf("could not persist Tailcat state: %v", serr)
+		}
 	}
 	sem := make(chan struct{}, maxConnections)
 	server.ServedTCPPorts = []filter.PortRange{{First: virtualPort, Last: virtualPort}}
