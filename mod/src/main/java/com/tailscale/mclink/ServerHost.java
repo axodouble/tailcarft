@@ -26,7 +26,7 @@ public final class ServerHost implements AutoCloseable {
         if (process != null) {
             return;
         }
-        Path stateDir = server.getRunDirectory().resolve("tailcat-for-minecraft");
+        Path stateDir = server.getRunDirectory().resolve("tailcarft");
         try {
             Files.createDirectories(stateDir);
             HelperProcess helper = HelperProcess.start(List.of(
@@ -34,20 +34,20 @@ public final class ServerHost implements AutoCloseable {
                     "--state-file", stateDir.resolve("state.json").toString()),
                     event -> {
                         if (!event.type().equals("ready")) {
-                            LOG.warn("Tailcat helper event [{}]: {}", event.code(), event.message());
+                            LOG.warn("Tailcarft helper event [{}]: {}", event.code(), event.message());
                         }
                     });
             process = helper;
             helper.ready(STARTUP_TIMEOUT).whenComplete((event, error) -> {
                 if (error != null) {
                     close();
-                    LOG.warn("Tailcat hosting failed: {}", error.getMessage());
+                    LOG.warn("Tailcarft hosting failed: {}", error.getMessage());
                     return;
                 }
-                LOG.info("[mclink] Tailcat invitation: {}", event.invite());
+                LOG.info("[mclink] Tailcarft invitation: {}", event.invite());
             });
         } catch (Exception e) {
-            LOG.warn("Could not start Tailcat host: {}", e.getMessage());
+            LOG.warn("Could not start Tailcarft host: {}", e.getMessage());
         }
     }
 

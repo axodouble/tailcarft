@@ -8,8 +8,8 @@
 package com.tailscale.mclink.mixin;
 
 import com.tailscale.mclink.JoinRemoteScreen;
-import com.tailscale.mclink.TailcatConfig;
-import com.tailscale.mclink.TailcatServerEntry;
+import com.tailscale.mclink.TailcarftConfig;
+import com.tailscale.mclink.TailcarftServerEntry;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerServerListWidget;
@@ -39,26 +39,26 @@ public abstract class MultiplayerScreenMixin extends Screen {
 
     @Inject(method = "init()V", at = @At("TAIL"))
     private void mclink$ensureMarkerEntry(CallbackInfo ci) {
-        TailcatConfig config = TailcatConfig.load();
+        TailcarftConfig config = TailcarftConfig.load();
         if (config == null) {
             return;
         }
         ServerList list = this.serverList;
-        if (list.get(TailcatServerEntry.MARKER) != null) {
+        if (list.get(TailcarftServerEntry.MARKER) != null) {
             return;
         }
-        ((ServerListAccessor) (Object) list).mclink$servers().add(0, TailcatServerEntry.create(config));
+        ((ServerListAccessor) (Object) list).mclink$servers().add(0, TailcarftServerEntry.create(config));
         this.serverListWidget.setServers(list);
     }
 
     @Inject(method = "connect(Lnet/minecraft/client/network/ServerInfo;)V", at = @At("HEAD"), cancellable = true)
-    private void mclink$joinViaTailcat(ServerInfo entry, CallbackInfo ci) {
-        if (!TailcatServerEntry.MARKER.equals(entry.address)) {
+    private void mclink$joinViaTailcarft(ServerInfo entry, CallbackInfo ci) {
+        if (!TailcarftServerEntry.MARKER.equals(entry.address)) {
             return;
         }
-        TailcatConfig config = TailcatConfig.load();
+        TailcarftConfig config = TailcarftConfig.load();
         if (config == null) {
-            LOG.warn("Tailcat server entry clicked but config is missing; ignoring");
+            LOG.warn("Tailcarft server entry clicked but config is missing; ignoring");
             ci.cancel();
             return;
         }
@@ -70,7 +70,7 @@ public abstract class MultiplayerScreenMixin extends Screen {
     private void mclink$disableMarkerButtons(CallbackInfo ci) {
         MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
         if (entry instanceof MultiplayerServerListWidget.ServerEntry serverEntry
-                && TailcatServerEntry.MARKER.equals(serverEntry.getServer().address)) {
+                && TailcarftServerEntry.MARKER.equals(serverEntry.getServer().address)) {
             this.buttonEdit.active = false;
             this.buttonDelete.active = false;
         }

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 package com.tailscale.mclink;
 
 import com.tailscale.mclink.mixin.IntegratedServerAccessor;
@@ -52,7 +59,7 @@ public final class ScreenState implements AutoCloseable {
         try {
             Session started = start(SessionMode.JOIN, List.of("join", "--invite", invitation.trim()), null, false);
             return awaitReady(started).thenAccept(event -> client.execute(() -> {
-                ServerInfo info = new ServerInfo("Tailcat World", event.address(), ServerInfo.ServerType.OTHER);
+                ServerInfo info = new ServerInfo("Tailcarft World", event.address(), ServerInfo.ServerType.OTHER);
                 ConnectScreen.connect(parent, client, ServerAddress.parse(event.address()), info, false, null);
             }));
         } catch (Exception e) {

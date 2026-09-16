@@ -1,4 +1,4 @@
-# Tailcat for Minecraft
+# Tailcarft
 
 > [!WARNING]
 > This is a quick, mostly AI-generated prototype demonstrating one way to use
@@ -34,9 +34,10 @@ and checksums Windows, macOS (Intel and Apple Silicon), and Linux helpers.
 
 ## Use
 
-The host pauses a single-player game and clicks **Share with Tailcat**, then
+The host pauses a single-player game and clicks **Share with Tailcarft**, then
 copies the `mcl1_...` invitation. The other player opens Multiplayer, clicks
-**Connect with Tailcat**, pastes it, and connects. Opening remote sharing
+**Connect with Tailcarft** (or pastes the invitation into any server address
+field), and connects. Opening remote sharing
 publishes the integrated server using Minecraft's normal LAN behavior if it is
 not already published.
 
@@ -63,16 +64,17 @@ mkdir -p mod/run-client2
 ```
 
 The switch is ignored outside Fabric's development environment and the server's
-original online-mode setting is restored when Tailcat sharing stops. Never use
+original online-mode setting is restored when Tailcarft sharing stops. Never use
 this bypass for real remote sharing.
 
 ## Releasing
 
 Tag a commit `vX.Y.Z` matching `mod_version` in `gradle.properties` (for
-example `v0.1.0`). The Forgejo Actions workflow in
+example `v0.1.0-beta0`). The Forgejo Actions workflow in
 `.forgejo/workflows/release.yaml` runs the Go and Java tests, rebuilds the
 helper natives for all platforms, and publishes the mod jar and `SHA256SUMS`
-as attachments on the new release.
+as attachments on the new release. A tag with a suffix after a dash
+(`v0.1.0-beta0`) is published as a pre-release.
 
 ## Release checklist
 

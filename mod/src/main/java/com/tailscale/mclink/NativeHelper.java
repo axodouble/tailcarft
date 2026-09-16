@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 package com.tailscale.mclink;
 
 import com.google.gson.JsonObject;
@@ -37,9 +44,9 @@ public final class NativeHelper {
         JsonObject sums = checksums();
         if (!sums.has(relative) || !sums.get(relative).isJsonPrimitive()) throw new IOException("Missing checksum for " + relative);
         String expected = sums.get(relative).getAsString();
-        String version = FabricLoader.getInstance().getModContainer("tailcat-for-minecraft").orElseThrow()
+        String version = FabricLoader.getInstance().getModContainer("tailcarft").orElseThrow()
                 .getMetadata().getVersion().getFriendlyString();
-        Path dir = FabricLoader.getInstance().getGameDir().resolve("tailcat-for-minecraft").resolve(version)
+        Path dir = FabricLoader.getInstance().getGameDir().resolve("tailcarft").resolve(version)
                 .resolve(platform.resourceDirectory());
         Files.createDirectories(dir);
         Path destination = dir.resolve(platform.executableName());

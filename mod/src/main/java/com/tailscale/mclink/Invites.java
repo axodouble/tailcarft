@@ -19,7 +19,7 @@ public final class Invites {
     public static String wrap(String token) {
         String tc = token.trim();
         if (!TOKEN.matcher(tc).matches()) {
-            throw new IllegalArgumentException("not a Tailcat token");
+            throw new IllegalArgumentException("not a Tailcarft token");
         }
         String json = "{\"version\":1,\"tailcat\":\"" + tc + "\"}";
         return "mcl1_" + Base64.getUrlEncoder().withoutPadding().encodeToString(json.getBytes(StandardCharsets.UTF_8));

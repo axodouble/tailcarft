@@ -7,7 +7,7 @@
 
 package com.tailscale.mclink.mixin;
 
-import com.tailscale.mclink.TailcatServerEntry;
+import com.tailscale.mclink.TailcarftServerEntry;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.option.ServerList;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,8 +25,8 @@ public abstract class ServerListMixin {
     @Inject(method = "swapEntries(II)V", at = @At("HEAD"), cancellable = true)
     private void mclink$blockMarkerMove(int a, int b, CallbackInfo ci) {
         List<ServerInfo> servers = ((ServerListAccessor) (Object) this).mclink$servers();
-        if (TailcatServerEntry.MARKER.equals(servers.get(a).address)
-                || TailcatServerEntry.MARKER.equals(servers.get(b).address)) {
+        if (TailcarftServerEntry.MARKER.equals(servers.get(a).address)
+                || TailcarftServerEntry.MARKER.equals(servers.get(b).address)) {
             ci.cancel();
         }
     }
@@ -35,7 +35,7 @@ public abstract class ServerListMixin {
     private void mclink$stashMarkerBeforeSave(CallbackInfo ci) {
         List<ServerInfo> servers = ((ServerListAccessor) (Object) this).mclink$servers();
         for (int i = 0; i < servers.size(); i++) {
-            if (TailcatServerEntry.MARKER.equals(servers.get(i).address)) {
+            if (TailcarftServerEntry.MARKER.equals(servers.get(i).address)) {
                 mclink$marker = servers.remove(i);
                 break;
             }

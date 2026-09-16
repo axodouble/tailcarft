@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "tailcat-for-minecraft",
+  "id": "tailcarft",
   "version": "${version}",
-  "name": "Tailcat for Minecraft",
-  "description": "Share Minecraft worlds through Tailcat's userspace WireGuard transport.",
-  "authors": ["Tailscale"],
+  "name": "Tailcarft",
+  "description": "Share Minecraft worlds through Tailcarft's userspace WireGuard transport.",
+  "authors": ["Tailscale", "Jasper \"Axodouble\" V."],
   "license": "BSD-3-Clause",
   "environment": "*",
   "entrypoints": {

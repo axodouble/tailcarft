@@ -10,18 +10,18 @@ package com.tailscale.mclink;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 
-public final class TailcatServerEntry {
-    public static final String MARKER = "mclink:tailcat";
+public final class TailcarftServerEntry {
+    public static final String MARKER = "mclink:tailcarft";
 
-    private TailcatServerEntry() {}
+    private TailcarftServerEntry() {}
 
-    public static ServerInfo create(TailcatConfig config) {
+    public static ServerInfo create(TailcarftConfig config) {
         ServerInfo info = new ServerInfo(config.name(), MARKER, ServerInfo.ServerType.OTHER);
         info.setStatus(ServerInfo.Status.SUCCESSFUL);
         info.ping = 1;
         info.label = Text.translatable("mclink.server.label");
         info.playerCountLabel = Text.empty();
-        byte[] icon = TailcatConfig.loadIcon(config.icon());
+        byte[] icon = TailcarftConfig.loadIcon(config.icon());
         if (icon != null) {
             info.setFavicon(icon);
         }

@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class TailcatConfigTest {
+class TailcarftConfigTest {
     @Test
     void parsesFullInvitation() {
-        TailcatConfig c = TailcatConfig.parse("{\"name\":\"My Server\",\"tailcat\":\"mcl1_abc\"}");
+        TailcarftConfig c = TailcarftConfig.parse("{\"name\":\"My Server\",\"tailcat\":\"mcl1_abc\"}");
         assertEquals("My Server", c.name());
         assertEquals("mcl1_abc", c.invite());
         assertNull(c.icon());
@@ -29,50 +29,50 @@ class TailcatConfigTest {
 
     @Test
     void wrapsBareTokenAndFillsDefaults() {
-        TailcatConfig c = TailcatConfig.parse("{\"tailcat\":\"tc_test\"}");
-        assertEquals("Tailcat Server", c.name());
+        TailcarftConfig c = TailcarftConfig.parse("{\"tailcat\":\"tc_test\"}");
+        assertEquals("Tailcarft Server", c.name());
         assertEquals("mcl1_eyJ2ZXJzaW9uIjoxLCJ0YWlsY2F0IjoidGNfdGVzdCJ9", c.invite());
     }
 
     @Test
     void blankNameFallsBackToDefault() {
-        assertEquals("Tailcat Server", TailcatConfig.parse("{\"name\":\"  \",\"tailcat\":\"mcl1_a\"}").name());
+        assertEquals("Tailcarft Server", TailcarftConfig.parse("{\"name\":\"  \",\"tailcat\":\"mcl1_a\"}").name());
     }
 
     @Test
     void carriesIconFileName() {
-        assertEquals("icon.png", TailcatConfig.parse("{\"tailcat\":\"mcl1_a\",\"icon\":\"icon.png\"}").icon());
+        assertEquals("icon.png", TailcarftConfig.parse("{\"tailcat\":\"mcl1_a\",\"icon\":\"icon.png\"}").icon());
     }
 
     @Test
     void rejectsInvalidConfigs() {
-        assertNull(TailcatConfig.parse("{}"));
-        assertNull(TailcatConfig.parse("{\"tailcat\":\"nope\"}"));
-        assertNull(TailcatConfig.parse("{\"tailcat\":42}"));
-        assertNull(TailcatConfig.parse("{\"tailcat\":null}"));
-        assertNull(TailcatConfig.parse("{\"tailcat\":{\"x\":1}}"));
-        assertNull(TailcatConfig.parse("not json"));
-        assertNull(TailcatConfig.parse("[1,2]"));
-        assertNull(TailcatConfig.parse("null"));
+        assertNull(TailcarftConfig.parse("{}"));
+        assertNull(TailcarftConfig.parse("{\"tailcat\":\"nope\"}"));
+        assertNull(TailcarftConfig.parse("{\"tailcat\":42}"));
+        assertNull(TailcarftConfig.parse("{\"tailcat\":null}"));
+        assertNull(TailcarftConfig.parse("{\"tailcat\":{\"x\":1}}"));
+        assertNull(TailcarftConfig.parse("not json"));
+        assertNull(TailcarftConfig.parse("[1,2]"));
+        assertNull(TailcarftConfig.parse("null"));
     }
 
     @Test
     void iconLoading(@TempDir Path dir) throws Exception {
         Files.write(dir.resolve("good.png"), png(64, 64));
-        assertNotNull(TailcatConfig.loadIcon(dir, "good.png"));
+        assertNotNull(TailcarftConfig.loadIcon(dir, "good.png"));
 
         Files.write(dir.resolve("small.png"), png(32, 32));
-        assertNull(TailcatConfig.loadIcon(dir, "small.png"));
+        assertNull(TailcarftConfig.loadIcon(dir, "small.png"));
 
         Files.writeString(dir.resolve("notes.txt"), "hello");
-        assertNull(TailcatConfig.loadIcon(dir, "notes.txt"));
+        assertNull(TailcarftConfig.loadIcon(dir, "notes.txt"));
 
         Files.write(dir.resolve("outside.png"), png(64, 64));
-        assertNull(TailcatConfig.loadIcon(dir, "../" + "outside.png"));
-        assertNull(TailcatConfig.loadIcon(dir, "sub/../../outside.png"));
-        assertNull(TailcatConfig.loadIcon(dir, "missing.png"));
-        assertNull(TailcatConfig.loadIcon(dir, ""));
-        assertNull(TailcatConfig.loadIcon(dir, null));
+        assertNull(TailcarftConfig.loadIcon(dir, "../" + "outside.png"));
+        assertNull(TailcarftConfig.loadIcon(dir, "sub/../../outside.png"));
+        assertNull(TailcarftConfig.loadIcon(dir, "missing.png"));
+        assertNull(TailcarftConfig.loadIcon(dir, ""));
+        assertNull(TailcarftConfig.loadIcon(dir, null));
     }
 
     static byte[] png(int w, int h) {

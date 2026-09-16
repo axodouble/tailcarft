@@ -17,11 +17,11 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public record TailcatConfig(String name, String invite, String icon) {
-    public static final String DEFAULT_NAME = "Tailcat Server";
+public record TailcarftConfig(String name, String invite, String icon) {
+    public static final String DEFAULT_NAME = "Tailcarft Server";
     private static final Logger LOG = LoggerFactory.getLogger("mclink");
 
-    public static TailcatConfig load() {
+    public static TailcarftConfig load() {
         try {
             Path path = FabricLoader.getInstance().getGameDir().resolve("config").resolve("mclink.json");
             if (!Files.isRegularFile(path)) {
@@ -34,7 +34,7 @@ public record TailcatConfig(String name, String invite, String icon) {
         }
     }
 
-    public static TailcatConfig parse(String json) {
+    public static TailcarftConfig parse(String json) {
         try {
             JsonObject o = JsonParser.parseString(json).getAsJsonObject();
             String invite = Invites.normalize(stringOrNull(o, "tailcat"));
@@ -45,7 +45,7 @@ public record TailcatConfig(String name, String invite, String icon) {
             if (name == null || name.isBlank()) {
                 name = DEFAULT_NAME;
             }
-            return new TailcatConfig(name.trim(), invite, stringOrNull(o, "icon"));
+            return new TailcarftConfig(name.trim(), invite, stringOrNull(o, "icon"));
         } catch (RuntimeException e) {
             return null;
         }
