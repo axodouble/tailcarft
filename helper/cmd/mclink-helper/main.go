@@ -16,6 +16,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -245,9 +246,13 @@ func runJoin(ctx context.Context, out *eventWriter, args []string) (string, erro
 }
 
 func validateLoopbackTarget(target string) error {
-	host, _, err := net.SplitHostPort(target)
+	host, port, err := net.SplitHostPort(target)
 	if err != nil {
 		return fmt.Errorf("invalid --target: %w", err)
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil || p < 1 || p > 65535 {
+		return fmt.Errorf("--target port %q is not a valid TCP port", port)
 	}
 	ip := net.ParseIP(host)
 	if ip == nil || !ip.IsLoopback() {

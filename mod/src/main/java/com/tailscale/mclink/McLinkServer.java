@@ -15,7 +15,7 @@ public final class McLinkServer implements DedicatedServerModInitializer {
 
     @Override
     public void onInitializeServer() {
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> host.start(server));
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> host.start(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> host.close());
     }
 }
