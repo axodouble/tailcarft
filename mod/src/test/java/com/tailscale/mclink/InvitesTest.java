@@ -44,6 +44,15 @@ class InvitesTest {
     }
 
     @Test
+    void normalizeRejectsServerHosts() {
+        assertNull(Invites.normalize("localhost"));
+        assertNull(Invites.normalize("127.0.0.1"));
+        assertNull(Invites.normalize("play.example.com"));
+        assertNull(Invites.normalize("[::1]"));
+        assertNull(Invites.normalize("tc.example.com"));
+    }
+
+    @Test
     void wrapRejectsNonTokens() {
         assertThrows(IllegalArgumentException.class, () -> Invites.wrap("mcl1_abc"));
         assertThrows(IllegalArgumentException.class, () -> Invites.wrap("x"));

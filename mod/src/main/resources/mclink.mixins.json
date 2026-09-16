@@ -6,7 +6,8 @@
     "IntegratedServerAccessor",
     "ServerListAccessor",
     "ServerListMixin",
-    "MultiplayerScreenMixin"
+    "MultiplayerScreenMixin",
+    "ConnectScreenMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }
