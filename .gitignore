@@ -24,3 +24,12 @@ helper/bin/
 *.log
 *.tmp
 hs_err_pid*
+
+mod/bin
+mod/logs/
+*.factorypath
+*.classpath
+*.settings
+*.project
+# Agent scratch workspace (superpowers SDD)
+.superpowers/
