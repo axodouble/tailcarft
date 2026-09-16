@@ -33,6 +33,9 @@ public final class ServerHost implements AutoCloseable {
                     "host", "--target", "127.0.0.1:" + server.getServerPort(),
                     "--state-file", stateDir.resolve("state.json").toString()),
                     event -> {
+                        if (!event.type().equals("ready")) {
+                            LOG.warn("Tailcat helper event [{}]: {}", event.code(), event.message());
+                        }
                     });
             process = helper;
             helper.ready(STARTUP_TIMEOUT).whenComplete((event, error) -> {
