@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  cancel-in-progress: false
+
+env:
+  JAVA_HOME: /opt/jdk21
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the repository
+        uses: https://data.forgejo.org/actions/checkout@v6
+
+      - name: Install Temurin JDK 21
+        run: |
+          set -euxo pipefail
+          mkdir -p "$JAVA_HOME"
+          curl --retry 3 -fsSL -o /tmp/jdk21.tar.gz \
+            "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
+          tar -xzf /tmp/jdk21.tar.gz -C "$JAVA_HOME" --strip-components=1
+          rm -f /tmp/jdk21.tar.gz
+          "$JAVA_HOME/bin/java" -version
+
+      - name: Build helper natives for all platforms
+        run: |
+          set -euxo pipefail
+          bash scripts/build-natives.sh
+
+      - name: Run Go tests
+        run: |
+          set -euxo pipefail
+          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/*/bin/go | head -n 1)
+          cd helper
+          GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
+
+      - name: Run Java tests and build the mod jar
+        run: |
+          set -euxo pipefail
+          ./gradlew :mod:test :mod:build --console=plain --no-daemon
+
+      - name: Verify the tag matches the mod version
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^mod_version=//p' gradle.properties)
+          if [[ "v$version" != "${{ forgejo.ref_name }}" ]]; then
+            echo "tag ${{ forgejo.ref_name }} does not match mod_version $version" >&2
+            exit 1
+          fi
+
+      - name: Stage release assets
+        run: |
+          set -euxo pipefail
+          version=$(sed -n 's/^mod_version=//p' gradle.properties)
+          mkdir -p dist/release
+          cp "mod/build/libs/tailcat-for-minecraft-${version}.jar" dist/release/
+          (cd dist/release && sha256sum *.jar > SHA256SUMS)
+          ls -l dist/release
+
+      - name: Publish the Forgejo release
+        uses: https://data.forgejo.org/actions/forgejo-release@v2.13.4
+        with:
+          direction: upload
+          release-dir: dist/release
+          title: ${{ forgejo.ref_name }}
+          override: 'true'

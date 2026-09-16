@@ -66,6 +66,14 @@ The switch is ignored outside Fabric's development environment and the server's
 original online-mode setting is restored when Tailcat sharing stops. Never use
 this bypass for real remote sharing.
 
+## Releasing
+
+Tag a commit `vX.Y.Z` matching `mod_version` in `gradle.properties` (for
+example `v0.1.0`). The Forgejo Actions workflow in
+`.forgejo/workflows/release.yaml` runs the Go and Java tests, rebuilds the
+helper natives for all platforms, and publishes the mod jar and `SHA256SUMS`
+as attachments on the new release.
+
 ## Release checklist
 
 The build is unsigned by default. Public release artifacts must Authenticode-
