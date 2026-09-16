@@ -21,7 +21,8 @@ node key + DERP region), so a modpack can ship a pre-filled client config.
   `{"name":"...","tailcat":"mcl1_...|tc...","icon":"file.png"}`.
 - Server state: `<serverroot>/tailcat-for-minecraft/state.json`, mode 0600,
   written atomically. Shape (no version key):
-  `{"key":"node:<hex>","region":<int>,"invite":"mcl1_..."}`.
+  `{"key":"privkey:<hex>","region":<int>,"invite":"mcl1_..."}` (the `privkey:`
+  prefix is Tailscale's canonical `key.NodePrivate` text form).
 - License headers (AGENTS.md): every **new** source file in this plan starts
   with the copyright header; the two **existing** source files modified here
   (`helper/cmd/mclink-helper/main.go`, `JoinRemoteScreen.java`) get the header
@@ -1395,7 +1396,7 @@ untouched). `ServerHost` is deliberately separate from the client-side
   "environment": "*",
   "entrypoints": {
     "client": ["com.tailscale.mclink.McLinkClient"],
-    "main": ["com.tailscale.mclink.McLinkServer"]
+    "server": ["com.tailscale.mclink.McLinkServer"]
   },
   "mixins": ["mclink.mixins.json"],
   "depends": {

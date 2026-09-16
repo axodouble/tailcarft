@@ -143,11 +143,10 @@ button) for helper failures.
 ## Server: auto-hosting
 
 - `fabric.mod.json`: `environment` becomes `"*"`; add
-  `"main": ["com.tailscale.mclink.McLinkServer"]`.
-- `McLinkServer implements DedicatedServerModInitializer`. That entrypoint fires
-  for **every** server start in a merged environment, so guard with
-  `if (!(server instanceof DedicatedServer ds)) return;` — integrated/LAN
-  hosting keeps its existing Share-button flow.
+  `"server": ["com.tailscale.mclink.McLinkServer"]` — the dedicated-server
+  entrypoint key, which fires only for dedicated servers (no integrated/LAN
+  guard needed; integrated hosting keeps its existing Share-button flow).
+- `McLinkServer implements DedicatedServerModInitializer`.
 - On start: spawn the helper
   `host --target 127.0.0.1:<ds.getPort()> --state-file <serverroot>/tailcat-for-minecraft/state.json`
   (`DedicatedServer.getPort()` is a public abstract method — no mixin needed).
