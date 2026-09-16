@@ -59,8 +59,9 @@ jobs:
         run: |
           set -euxo pipefail
           version=$(sed -n 's/^mod_version=//p' gradle.properties)
+          base=$(sed -n 's/^archives_base_name=//p' gradle.properties)
           mkdir -p dist/release
-          cp "mod/build/libs/tailcat-for-minecraft-${version}.jar" dist/release/
+          cp "mod/build/libs/${base}-${version}.jar" dist/release/
           (cd dist/release && sha256sum *.jar > SHA256SUMS)
           ls -l dist/release
 
@@ -70,4 +71,5 @@ jobs:
           direction: upload
           release-dir: dist/release
           title: ${{ forgejo.ref_name }}
+          prerelease: ${{ contains(forgejo.ref_name, '-') }}
           override: 'true'
