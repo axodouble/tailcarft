@@ -13,6 +13,12 @@ helper/mclink-helper
 helper/mclink-helper.exe
 helper/bin/
 
+# Generated helper natives (rebuilt by scripts/build-natives.sh)
+mod/src/main/resources/assets/mclink/native/
+
+# Demo video (kept out of git)
+tailcatmcdemo.mp4
+
 # IDE and operating-system metadata
 .idea/
 .vscode/
