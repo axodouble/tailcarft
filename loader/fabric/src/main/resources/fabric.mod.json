@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "tailcarft",
+  "version": "${version}",
+  "name": "Tailcarft",
+  "description": "Share Minecraft worlds through Tailcarft's userspace WireGuard transport.",
+  "authors": ["Tailscale", "Jasper \"Axodouble\" V."],
+  "license": "BSD-3-Clause",
+  "environment": "*",
+  "entrypoints": {
+    "client": ["com.tailscale.mclink.FabricClient"],
+    "server": ["com.tailscale.mclink.FabricServer"]
+  },
+  "mixins": ["mclink.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=${java_version}",
+    "fabric-api": "*"
+  }
+}
