@@ -1,7 +1,8 @@
 # Design: Multi-loader, multi-version build (Fabric + NeoForge + Forge, 6 MC versions)
 
 Date: 2026-09-17
-Status: approved in conversation (approach A; Forge for 1.20.1; `tailcarft-<ver>-<loader>-<mc>.jar` naming)
+Status: approved in conversation (approach A; Forge for 1.20.1; `tailcarft-<ver>-<loader>-<mc>.jar` naming;
+**all leaves compile against Mojang official mappings (mojmap)** — see Mappings decision)
 
 ## Purpose
 
@@ -57,20 +58,58 @@ other layers have none.
 
 `mod/` is deleted once the move is complete.
 
+## Mappings decision (all leaves use Mojang official mappings)
+
+Fabric publishes **no yarn builds for 26.1/26.2/26.3** (newest yarn is
+`1.21.11+build.6`), and NeoForge deobfuscates to Mojang names natively. To keep
+a single shared `common` source layer across every version *and* loader, all
+twelve leaves compile against **Mojang official mappings (mojmap)**:
+
+- Fabric leaves: `mappings loom.officialMojangMappings()` (no yarn anywhere).
+  fabric-api is published to the *intermediary* namespace, so it works under
+  mojmap on every version.
+- NeoForge leaves: mojmap by default (NeoForm).
+- Forge leaf: mojmap by default (ForgeGradle).
+
+Consequence: the existing code, currently written in yarn names, is rewritten
+once to mojmap names (one-time, contained to the ~12 files that import
+`net.minecraft`). Confirmed renames for the imports in use:
+
+| yarn (today)        | mojmap (target)          |
+| ------------------- | ------------------------ |
+| `MinecraftClient`   | `Minecraft`              |
+| `DrawContext`       | `GuiGraphics`            |
+| `Text`              | `Component`              |
+| `ButtonWidget`      | `Button`                 |
+| `TextFieldWidget`   | `EditBox`                |
+| `ServerInfo`        | `ServerData`             |
+| `GameMenuScreen`    | `IngameMenu`             |
+| `IntegratedServer`  | `MinecraftServer`        |
+| `MultiplayerScreen` | `MultiplayerList`        |
+| `Screen`, `ConnectScreen`, `ServerAddress`, `ServerList`, `CookieStorage`, `SystemToast`, `NetworkUtils`, `PngMetadata`, `MinecraftServer` | unchanged |
+
+Any remaining name (e.g. `MultiplayerServerListWidget`) is confirmed against
+the loom-decompiled sources during implementation, not guessed.
+
 ## Build matrix and Gradle configuration
 
 - `gradle.properties` holds the matrix and all version pins:
   - `targets.fabric=1.20.1,1.21.1,1.21.11,26.1,26.2,26.3`
   - `targets.neoforge=1.21.1,1.21.11,26.1,26.2,26.3`
   - `targets.forge=1.20.1`
-  - Per-version pins, e.g. `yarn.1.21.1=1.21.1+build.3`,
-    `fabricapi.1.21.1=0.115.6+1.21.1`, `neoforge.26.3=26.3.0.3-beta`,
-    `forge.1.20.1=47.4.x`, `java.1.20.1=17`, `java.default=21`.
-  - Exact pin values for the 26.x line (yarn build, fabric-api, fabric-loader,
-    NeoForge) are resolved against the Fabric meta / NeoForge maven at
-    implementation time and recorded here. The 26.x Java requirement is
-    verified the same way; if any 26.x version requires a JDK newer than 21,
-    `java.<mc>` records it and CI installs that JDK too.
+  - Per-version pins, verified against upstream metadata on 2026-09-17:
+    - `java.1.20.1=17`, `java.1.21.1=21`, `java.1.21.11=21`,
+      `java.26.1=25`, `java.26.2=25`, `java.26.3=25`
+      (26.x requires **Java 25**; the Gradle wrapper may need a bump to
+      recognize a Java 25 toolchain — verified in the scaffold step).
+    - `fabricloader=0.19.5` (single pin; loader is version-agnostic here)
+    - `fabricapi.1.20.1=0.92.12+1.20.1`, `fabricapi.1.21.1=0.116.17+1.21.1`,
+      `fabricapi.1.21.11=0.141.6+1.21.11`, `fabricapi.26.1=0.145.1+26.1`,
+      `fabricapi.26.2=0.160.0+26.2`, `fabricapi.26.3=0.160.6+26.3`
+    - `neoforge.1.21.1=21.1.250`, `neoforge.1.21.11=21.11.45`,
+      `neoforge.26.1=26.1.2.109`, `neoforge.26.2=26.2.0.88`,
+      `neoforge.26.3=26.3.0.3-beta`
+    - `forge.1.20.1=1.20.1-47.4.23`
 - `settings.gradle` includes one leaf project per (loader, version) pair from
   the matrix, named `<loader>-<mc_version>` (e.g. `fabric-1.20.1`,
   `neoforge-26.3`).
@@ -86,7 +125,8 @@ other layers have none.
     "tailcarft-${mod_version}-${loader}-${mc_version}"` so every jar comes out
     with its final release name.
   - `mc-fabric` — applies `fabric-loom`; dependencies `com.mojang:minecraft:<v>`,
-    yarn mappings, fabric-loader, fabric-api (per-version pins).
+    `mappings loom.officialMojangMappings()`, fabric-loader, fabric-api
+    (per-version pins).
   - `mc-neoforge` — applies `net.neoforged.moddev`; dependency `net.neoforged:neoforge:<pin>`.
   - `mc-forge` — applies `net.minecraftforge.gradle`; dependency `net.minecraftforge:forge:<pin>`.
 - `./gradlew build` at the root builds and tests all 12 leaves; Gradle runs
@@ -186,9 +226,16 @@ Releasing section.
 
 ## Risks and unknowns
 
-- Exact yarn/fabric-api/fabric-loader/NeoForge pins for 1.21.11 and the 26.x
-  line, and the 26.x Java toolchain requirement: resolved against upstream
-  metadata at implementation time and recorded in `gradle.properties`.
+- **Java 25 for 26.x.** 26.1/26.2/26.3 require a Java 25 toolchain. The current
+  Gradle wrapper (8.10.2) may not recognize a Java 25 toolchain; if not, the
+  wrapper is bumped in the scaffold step before any code moves. CI installs
+  Temurin 17, 21, and 25.
+- **fabric-api under mojmap on 1.20.1.** fabric-api is intermediary-based and
+  works under mojmap, but its own mixins/accessors are exercised for the first
+  time under mojmap on the oldest target; the 1.20.1 leaf build is the check.
+- **One-time mojmap rewrite.** ~12 files import `net.minecraft`; renaming yarn
+  → mojmap is mechanical but must be verified by a full build of every leaf,
+  not by inspection.
 - API drift: 1.20.1 will need at least mixin/signature fixes (Screen
   constructor, button APIs); 26.x drift is unknown and may require additional
   per-version classes. The version layering contains this; worst case a version
@@ -200,6 +247,11 @@ Releasing section.
   build is a proven pattern (multi-loader templates) but is new to this repo;
   the first implementation step is an empty-matrix build check before moving
   code.
+
+All loader/fabric-api/NeoForge/Forge pins and the per-version Java requirement
+were verified against upstream metadata on 2026-09-17 and are recorded in the
+Build matrix section above; they are re-confirmed (not re-chosen) in the
+scaffold step.
 
 ## Conventions
 
