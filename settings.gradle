@@ -1,8 +1,21 @@
 pluginManagement {
     repositories {
         maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.minecraftforge.net' }
         gradlePluginPortal()
     }
 }
+
 rootProject.name = 'tailcat-for-minecraft'
-include 'mod'
+
+def matrix = new Properties()
+file('gradle.properties').withInputStream { matrix.load(it) }
+['fabric', 'neoforge', 'forge'].each { loader ->
+    def key = "targets.${loader}"
+    if (matrix.getProperty(key) != null) {
+        matrix.getProperty(key).split(',').each { mc ->
+            include "${loader}-${mc.trim()}"
+        }
+    }
+}

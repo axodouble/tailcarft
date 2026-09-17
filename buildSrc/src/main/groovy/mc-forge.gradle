@@ -1,0 +1,16 @@
+plugins {
+    id 'net.minecraftforge.gradle'
+}
+
+def mc = project.name.substring(project.name.indexOf('-') + 1)
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${rootProject.findProperty("forge.${mc}")}")
+}

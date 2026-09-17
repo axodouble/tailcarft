@@ -2,6 +2,7 @@
 .gradle/
 **/.gradle/
 **/build/
+buildSrc/bin/
 
 # Minecraft development instances (saves, logs, options, extracted helpers)
 mod/run/
@@ -39,3 +40,6 @@ mod/logs/
 *.project
 # Agent scratch workspace (superpowers SDD)
 .superpowers/
+
+# Local machine-specific Gradle settings (JDK installation paths)
+local.properties

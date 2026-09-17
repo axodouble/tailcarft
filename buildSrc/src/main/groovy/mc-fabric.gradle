@@ -1,0 +1,16 @@
+plugins {
+    id 'fabric-loom'
+}
+
+def mc = project.name.substring(project.name.indexOf('-') + 1)
+def unobfuscated = !mc.startsWith('1.')
+def modConfig = unobfuscated ? 'implementation' : 'modImplementation'
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mc}"
+    if (!unobfuscated) {
+        mappings loom.officialMojangMappings()
+    }
+    add(modConfig, "net.fabricmc:fabric-loader:${rootProject.findProperty('fabricloader')}")
+    add(modConfig, "net.fabricmc.fabric-api:fabric-api:${rootProject.findProperty("fabricapi.${mc}")}")
+}

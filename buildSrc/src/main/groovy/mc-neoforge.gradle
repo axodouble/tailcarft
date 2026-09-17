@@ -1,0 +1,9 @@
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+def mc = project.name.substring(project.name.indexOf('-') + 1)
+
+neoForge {
+    version = rootProject.findProperty("neoforge.${mc}") as String
+}

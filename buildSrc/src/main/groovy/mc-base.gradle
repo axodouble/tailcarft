@@ -1,0 +1,81 @@
+plugins {
+    id 'java'
+}
+
+def loader = project.name.substring(0, project.name.indexOf('-'))
+def mc = project.name.substring(project.name.indexOf('-') + 1)
+def javaVersion = Integer.parseInt(rootProject.findProperty("java.${mc}") ?: '21')
+def modVersion = rootProject.findProperty('mod_version') as String
+
+version = modVersion
+group = rootProject.findProperty('maven_group') as String
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaVersion)
+    }
+    withSourcesJar()
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [
+                rootProject.file('common/src/main/java'),
+                rootProject.file("loader/${loader}/src/main/java"),
+                rootProject.file("version/${mc}/src/main/java"),
+        ]
+        resources.srcDirs = [
+                rootProject.file('common/src/main/resources'),
+                rootProject.file("loader/${loader}/src/main/resources"),
+                rootProject.file("version/${mc}/src/main/resources"),
+        ]
+    }
+    test {
+        java.srcDirs = [rootProject.file('common/src/test/java')]
+    }
+}
+
+// Per-(loader, version) escape hatch, e.g. version/26.3/src-fabric/java.
+if (rootProject.file("version/${mc}/src-${loader}/java").exists()) {
+    sourceSets.main.java.srcDir rootProject.file("version/${mc}/src-${loader}/java")
+}
+if (rootProject.file("version/${mc}/src-${loader}/resources").exists()) {
+    sourceSets.main.resources.srcDir rootProject.file("version/${mc}/src-${loader}/resources")
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+base {
+    archivesName = "tailcarft-${modVersion}-${loader}-${mc}"
+}
+
+// Jar files come out named exactly tailcarft-<mod_version>-<loader>-<mc>.jar
+// (no trailing -<version> suffix); project.version still feeds resource expansion.
+tasks.withType(AbstractArchiveTask).configureEach {
+    archiveVersion = ''
+}
+
+processResources {
+    def props = [
+            version          : modVersion,
+            minecraft_version: mc,
+            java_version     : javaVersion.toString(),
+            loader_version   : loader == 'fabric' ? rootProject.findProperty('fabricloader')
+                    : loader == 'neoforge' ? rootProject.findProperty("neoforge.${mc}")
+                    : rootProject.findProperty("forge.${mc}"),
+    ]
+    inputs.properties(props)
+    filesMatching(['fabric.mod.json', 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml']) {
+        expand(props)
+    }
+}
