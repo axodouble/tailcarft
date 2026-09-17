@@ -1,90 +1,70 @@
 # Tailcarft
 
-> [!WARNING]
-> This is a quick, mostly AI-generated prototype demonstrating one way to use
-> Tailcat. It is not an officially supported Tailscale product, and Tailscale
-> has no plans to distribute it. This repository is provided for demonstration
-> and amusement only.
+A Fabric 1.21.1 client mod that shares a single-player Minecraft world. It
+uses [Tailcat](https://github.com/tailscale/tailcat) for its
+connecting technology — userspace WireGuard with no TUN interface and no
+Tailscale installation. The mod ships a bundled Go helper that owns all
+networking.
 
-A Fabric 1.21.1 client mod that shares an integrated Minecraft world through
-[Tailcat](https://github.com/tailscale/tailcat)'s
-standard userspace WireGuard, magicsock direct NAT traversal, and DERP fallback.
-It creates no TUN interface and requires no Tailscale installation. Java owns
-Minecraft UI/process lifecycle; the bundled Go helper owns all networking and
-encryption.
+## Use
 
-## Demo
+- **Host:** pause a single-player game, click **Share with Tailcarft**, and
+  copy the `mcl1_...` invitation.
+- **Join:** open Multiplayer and click **Connect with Tailcarft**, or paste the
+  invitation into any server address field.
 
-https://github.com/user-attachments/assets/18cb9999-c6bc-482b-b4e8-5d37423a6259
+**Server workflow.** Sharing publishes your single-player world the same way
+*Open to LAN* does, then the bundled helper binds to that local port and
+exposes it over [Tailcat](https://github.com/tailscale/tailcat). The invitation is an ephemeral token: anyone holding
+it can connect for as long as sharing is on, and only the game port (virtual
+TCP 25565) is exposed. Click **Stop** — or leave the world — to end sharing.
+
+## Config
+
+Place `mclink.json` in your `config/` directory:
+
+```json
+{
+  "tailcat": "mcl1_...",
+  "name": "My World",
+  "icon": "icon.png"
+}
+```
+
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `tailcat` | yes | Invitation — either an `mcl1_...` envelope or a bare `tc...` token |
+| `name` | no | Display name of the pinned multiplayer entry (default: `Tailcarft Server`) |
+| `icon` | no | A 64x64 PNG in `config/` shown next to the entry; any other size is ignored |
+
+The file stores an invitation so you don't have to paste it every time. With a
+valid config, a pinned entry that can't be edited or deleted appears at the top
+of the multiplayer list and connects with one click. A missing or invalid
+config shows nothing.
 
 ## Build
 
-Requirements are JDK 21, `curl`, and `tar`. The helper uses the public
-[Tailcat Go module](https://github.com/tailscale/tailcat). The native build
-script downloads the required Tailscale Go toolchain:
+Requires JDK 21, `curl`, and `tar`:
 
 ```sh
 scripts/build-natives.sh
 ./gradlew :mod:build
 ```
 
-The normal JAR is written to `mod/build/libs/`. For Java-only development,
-set `MCLINK_HELPER` to a locally built helper path. The native build produces
-and checksums Windows, macOS (Intel and Apple Silicon), and Linux helpers.
-
-## Use
-
-The host pauses a single-player game and clicks **Share with Tailcarft**, then
-copies the `mcl1_...` invitation. The other player opens Multiplayer, clicks
-**Connect with Tailcarft** (or pastes the invitation into any server address
-field), and connects. Opening remote sharing
-publishes the integrated server using Minecraft's normal LAN behavior if it is
-not already published.
-
-The versioned invitation wraps an ephemeral Tailcat connection token. Possession
-of that unguessable token authorizes access for the lifetime of the sharing
-session. The helper allows only virtual TCP port 25565, binds join listeners
-only to `127.0.0.1`, and caps concurrent streams.
-
-### Local two-client development
-
-To test with one Minecraft account, launch only the host with the explicitly
-development-only offline-auth switch:
-
-```sh
-MCLINK_DEV_OFFLINE_AUTH=1 ./gradlew :mod:runClient
-```
-
-Launch the second client from another terminal with an isolated game directory
-and a different offline username:
-
-```sh
-mkdir -p mod/run-client2
-./gradlew :mod:runClient --args='--gameDir ../run-client2 --username Client2'
-```
-
-The switch is ignored outside Fabric's development environment and the server's
-original online-mode setting is restored when Tailcarft sharing stops. Never use
-this bypass for real remote sharing.
+The jar lands in `mod/build/libs/`. For Java-only development, point
+`MCLINK_HELPER` at a locally built helper binary instead.
 
 ## Releasing
 
 Tag a commit `vX.Y.Z` matching `mod_version` in `gradle.properties` (for
-example `v0.1.0-beta0`). The Forgejo Actions workflow in
-`.forgejo/workflows/release.yaml` runs the Go and Java tests, rebuilds the
-helper natives for all platforms, and publishes the mod jar and `SHA256SUMS`
-as attachments on the new release. A tag with a suffix after a dash
-(`v0.1.0-beta0`) is published as a pre-release.
+example `v0.1.0-beta0`). The workflow in `.forgejo/workflows/release.yaml`
+runs the tests, rebuilds the helper natives, and publishes the jar and
+`SHA256SUMS` as release attachments. A dashed tag (anything after a `-`) is
+published as a pre-release.
 
-## Release checklist
+---
 
-The build is unsigned by default. Public release artifacts must Authenticode-
-sign both Windows executables, sign/notarize the two macOS executables, replace
-the packaged files, regenerate `checksums.json`, generate complete third-party
-notices, and then build the final JAR. Test separate machines and direct/DERP
-paths as listed in the project brief.
-
-Generate the dependency notices from the locked Go module graph (for example,
-with `go-licenses report ./...`). Tailcat and Tailscale are BSD-3-Clause
-licensed; Fabric Loader/API are runtime dependencies rather than embedded mod
-contents, and Minecraft remains subject to Mojang's terms.
+Tailcarft was built on top of
+[tailcat-for-minecraft](https://github.com/tailscale/tailcat-for-minecraft)
+on GitHub and uses [Tailcat](https://github.com/tailscale/tailcat) for its connecting technology. Its BSD 3-Clause
+license still applies in full — see `LICENSE`.
