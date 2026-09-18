@@ -13,4 +13,9 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${rootProject.findProperty("forge.${mc}")}")
+
+    // ForgeGradle does not propagate the forge classpath to the test runtime
+    // classpath, but the shared common tests exercise slf4j/gson-backed classes.
+    testRuntimeOnly 'org.slf4j:slf4j-api:2.0.9'
+    testRuntimeOnly 'com.google.code.gson:gson:2.10.1'
 }
