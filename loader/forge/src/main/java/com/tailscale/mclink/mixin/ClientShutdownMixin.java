@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Minecraft.class)
 public abstract class ClientShutdownMixin {
-    @Inject(method = "destroy", at = @At("HEAD"))
+    @Inject(method = "close", at = @At("HEAD"))
     private void mclink$onClientStopping(Minecraft self, CallbackInfo ci) {
         ClientMod.onClientStopping(self);
     }

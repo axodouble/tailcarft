@@ -8,6 +8,7 @@
 package com.tailscale.mclink.mixin;
 
 import com.tailscale.mclink.JoinRemoteScreen;
+import com.tailscale.mclink.ServerListAccessor;
 import com.tailscale.mclink.TailcarftConfig;
 import com.tailscale.mclink.TailcarftServerEntry;
 import net.minecraft.client.gui.components.Button;

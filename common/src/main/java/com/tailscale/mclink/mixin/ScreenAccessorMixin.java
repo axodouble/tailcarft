@@ -7,6 +7,7 @@
 
 package com.tailscale.mclink.mixin;
 
+import com.tailscale.mclink.ScreenAccessor;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;

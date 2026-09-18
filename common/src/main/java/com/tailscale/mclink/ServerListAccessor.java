@@ -5,7 +5,7 @@
  * found in the LICENSE file.
  */
 
-package com.tailscale.mclink.mixin;
+package com.tailscale.mclink;
 
 import net.minecraft.client.multiplayer.ServerData;
 

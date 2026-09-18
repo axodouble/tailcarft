@@ -7,6 +7,7 @@
 
 package com.tailscale.mclink.mixin;
 
+import com.tailscale.mclink.ServerListAccessor;
 import com.tailscale.mclink.TailcarftServerEntry;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;

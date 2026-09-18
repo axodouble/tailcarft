@@ -14,8 +14,16 @@ repositories {
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${rootProject.findProperty("forge.${mc}")}")
 
-    // ForgeGradle does not propagate the forge classpath to the test runtime
-    // classpath, but the shared common tests exercise slf4j/gson-backed classes.
+    // ForgeGradle does not propagate the forge/Minecraft classpath to the test
+    // runtime classpath, but the shared mixin regression tests need the named
+    // Minecraft classes on that classpath.
     testRuntimeOnly 'org.slf4j:slf4j-api:2.0.9'
     testRuntimeOnly 'com.google.code.gson:gson:2.10.1'
+}
+
+// Make the named Minecraft classes and the asm/gson they pull in available to
+// the shared mixin regression tests, which run in the test task of every leaf.
+configurations {
+    testCompileClasspath.extendsFrom runtimeClasspath
+    testRuntimeClasspath.extendsFrom runtimeClasspath
 }

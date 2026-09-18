@@ -14,3 +14,10 @@ dependencies {
     add(modConfig, "net.fabricmc:fabric-loader:${rootProject.findProperty('fabricloader')}")
     add(modConfig, "net.fabricmc.fabric-api:fabric-api:${rootProject.findProperty("fabricapi.${mc}")}")
 }
+
+// Make the named Minecraft classes and the asm/gson they pull in available to
+// the shared mixin regression tests, which run in the test task of every leaf.
+configurations {
+    testCompileClasspath.extendsFrom runtimeClasspath
+    testRuntimeClasspath.extendsFrom runtimeClasspath
+}

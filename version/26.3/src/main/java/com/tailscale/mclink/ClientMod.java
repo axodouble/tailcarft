@@ -7,7 +7,6 @@
 
 package com.tailscale.mclink;
 
-import com.tailscale.mclink.mixin.ScreenAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
