@@ -44,10 +44,11 @@ jobs:
       - name: Run Java tests and build all leaf jars
         env:
           JAVA_HOME: /opt/jdk21
-          GRADLE_OPTS: -Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
         run: |
-          set -euxo pipefail
-          ./gradlew test build --console=plain --no-daemon
+          # org.gradle.java.installations.* must be passed on the command line
+          # (or via gradle.properties); Gradle ignores them when set through
+          # GRADLE_OPTS, so the /opt/jdk* toolchains would go undetected.
+          ./gradlew -Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25 test build --console=plain --no-daemon
 
       - name: Verify the tag matches the mod version
         run: |
