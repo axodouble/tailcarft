@@ -4,8 +4,18 @@
 **/build/
 buildSrc/bin/
 
-# Minecraft development instances (saves, logs, options, extracted helpers)
+# Per-leaf build output and Eclipse/Buildship artifacts
+bin/
+.settings/
+.classpath
+.project
+.factorypath
+
+# Minecraft development instances (saves, logs, options, extracted clients)
 run/
+logs/
+mc263/
+mc263full/
 
 # Go build output
 helper/mclink-helper
@@ -27,13 +37,10 @@ tailcatmcdemo.mp4
 
 # Local diagnostics and temporary files
 *.log
+*.log.gz
 *.tmp
 hs_err_pid*
 
-*.factorypath
-*.classpath
-*.settings
-*.project
 # Agent scratch workspace (superpowers SDD)
 .superpowers/
 
