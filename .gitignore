@@ -5,8 +5,6 @@
 buildSrc/bin/
 
 # Minecraft development instances (saves, logs, options, extracted helpers)
-mod/run/
-mod/run-*/
 run/
 
 # Go build output
@@ -15,7 +13,7 @@ helper/mclink-helper.exe
 helper/bin/
 
 # Generated helper natives (rebuilt by scripts/build-natives.sh)
-mod/src/main/resources/assets/mclink/native/
+common/src/main/resources/assets/mclink/native/
 
 # Demo video (kept out of git)
 tailcatmcdemo.mp4
@@ -32,8 +30,6 @@ tailcatmcdemo.mp4
 *.tmp
 hs_err_pid*
 
-mod/bin
-mod/logs/
 *.factorypath
 *.classpath
 *.settings

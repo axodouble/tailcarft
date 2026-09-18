@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/helper/bin"
-RES="$ROOT/mod/src/main/resources/assets/mclink/native"
+RES="$ROOT/common/src/main/resources/assets/mclink/native"
 TSGO_REV=63ae404c8203317fd3c82d972e5dc8f0fcb425cb
 mkdir -p "$OUT" "$RES"
 
