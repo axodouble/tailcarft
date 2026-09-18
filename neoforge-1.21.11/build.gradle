@@ -1,2 +1,0 @@
-// Thin matrix module: shared sources and build logic (see buildSrc and the
-// root build.gradle). This file exists so the module directory is tracked.

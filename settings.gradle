@@ -15,7 +15,9 @@ file('gradle.properties').withInputStream { matrix.load(it) }
     def key = "targets.${loader}"
     if (matrix.getProperty(key) != null) {
         matrix.getProperty(key).split(',').each { mc ->
-            include "${loader}-${mc.trim()}"
+            def name = "${loader}-${mc.trim()}"
+            file(name).mkdirs()
+            include name
         }
     }
 }
