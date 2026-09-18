@@ -41,31 +41,16 @@ jobs:
           cd helper
           GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
 
-      - name: Build all leaf jars (isolated per-leaf invocations)
+      - name: Build all leaf jars
         env:
           JAVA_HOME: /opt/jdk21
         run: |
           set -euxo pipefail
-          # Two memory constraints shape how this is built:
-          #   1. org.gradle.java.installations.* must be on the command line (or in
-          #      gradle.properties); Gradle ignores them when set via GRADLE_OPTS, so
-          #      the /opt/jdk* toolchains would otherwise go undetected.
-          #   2. The runner has ~7 GiB free. A single `./gradlew build` configures all
-          #      12 leaves in one daemon (6 Fabric Loom leaves' MC artifacts + the Forge
-          #      MCP decompile) and the OOM killer SIGKILLs the decompile. Building each
-          #      leaf in its own invocation with configure-on-demand keeps the daemon to
-          #      one leaf, so the decompile never shares the heap with the Loom leaves.
-          # The Forge leaf (the MCP decompile, the memory hog) runs in its own daemon so
-          # it starts from a clean, low-memory heap.
+          # org.gradle.java.installations.* must be on the command line (or in
+          # gradle.properties); Gradle ignores them when set via GRADLE_OPTS, so the
+          # /opt/jdk* toolchains would otherwise go undetected.
           JDKS=-Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
-          ./gradlew --no-daemon --configure-on-demand $JDKS :forge-1.20.1:build --console=plain
-          for leaf in \
-            fabric-1.20.1 fabric-1.21.1 fabric-1.21.11 \
-            fabric-26.1 fabric-26.2 fabric-26.3 \
-            neoforge-1.21.1 neoforge-1.21.11 neoforge-26.1 neoforge-26.2 neoforge-26.3
-          do
-            ./gradlew --configure-on-demand $JDKS ":$leaf:build" --console=plain
-          done
+          ./gradlew $JDKS build --console=plain
 
       - name: Verify the tag matches the mod version
         run: |
