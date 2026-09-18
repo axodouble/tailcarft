@@ -7,6 +7,7 @@
 
 package com.tailscale.mclink;
 
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
@@ -18,7 +19,9 @@ public final class NeoForgeRuntimeEnv implements RuntimeEnv {
 
     @Override public Path configDir() { return FMLPaths.CONFIGDIR.get(); }
 
-    @Override public boolean isDevelopment() { return !FMLEnvironment.production; }
+    @Override public boolean isDevelopment() { return !FMLEnvironment.isProduction(); }
+
+    public boolean isClient() { return FMLEnvironment.getDist() == Dist.CLIENT; }
 
     @Override public String modVersion() {
         return ModList.get().getModContainerById("tailcarft").orElseThrow()
