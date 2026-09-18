@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ConnectScreenMixin {
     @Inject(method = "connect(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/multiplayer/resolver/ServerAddress;Lnet/minecraft/client/multiplayer/ServerData;)V",
             at = @At("HEAD"), cancellable = true)
-    private static void mclink$joinViaInvite(Minecraft client, ServerAddress address, ServerData server, CallbackInfo ci) {
+    private void mclink$joinViaInvite(ConnectScreen self, Minecraft client, ServerAddress address, ServerData server, CallbackInfo ci) {
         mclink$maybeJoin(client, client.screen, address, ci);
     }
 
