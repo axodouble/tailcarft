@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 
@@ -26,7 +27,7 @@ public final class ServerHost implements AutoCloseable {
         if (process != null) {
             return;
         }
-        Path stateDir = server.getServerDirectory().resolve("tailcarft");
+        Path stateDir = Paths.get(server.getServerDirectory().toString(), "tailcarft");
         try {
             Files.createDirectories(stateDir);
             HelperProcess helper = HelperProcess.start(List.of(

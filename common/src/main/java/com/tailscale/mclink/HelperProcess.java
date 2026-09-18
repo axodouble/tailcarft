@@ -31,8 +31,12 @@ public final class HelperProcess implements AutoCloseable {
 
     private HelperProcess(Process process, Consumer<HelperEvent> events) {
         this.process = process;
-        Thread.ofVirtual().name("mclink-helper-stdout").start(() -> readStdout(events));
-        Thread.ofVirtual().name("mclink-helper-stderr").start(this::drainStderr);
+        Thread stdout = new Thread(() -> readStdout(events));
+        stdout.setName("mclink-helper-stdout");
+        stdout.start();
+        Thread stderr = new Thread(this::drainStderr);
+        stderr.setName("mclink-helper-stderr");
+        stderr.start();
         process.onExit().thenAccept(p -> {
             if (!closing.get()) {
                 IOException failure = new IOException("helper exited unexpectedly (status " + p.exitValue() + ")");

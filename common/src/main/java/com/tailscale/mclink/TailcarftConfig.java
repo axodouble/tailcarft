@@ -9,7 +9,6 @@ package com.tailscale.mclink;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.minecraft.util.PngInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,9 +64,9 @@ public record TailcarftConfig(String name, String invite, String icon) {
         }
         try {
             byte[] bytes = Files.readAllBytes(file);
-            PngInfo metadata = PngInfo.fromBytes(bytes);
-            if (metadata.width() != 64 || metadata.height() != 64) {
-                LOG.warn("mclink icon {} is {}x{}, expected 64x64", fileName, metadata.width(), metadata.height());
+            PngSize size = pngSize(bytes);
+            if (size.width() != 64 || size.height() != 64) {
+                LOG.warn("mclink icon {} is {}x{}, expected 64x64", fileName, size.width(), size.height());
                 return null;
             }
             return bytes;
@@ -75,6 +74,21 @@ public record TailcarftConfig(String name, String invite, String icon) {
             LOG.warn("Ignoring invalid mclink icon {}: {}", fileName, e.getMessage());
             return null;
         }
+    }
+
+    private record PngSize(int width, int height) {}
+
+    private static PngSize pngSize(byte[] bytes) {
+        if (bytes.length < 24
+                || (bytes[0] & 0xFF) != 0x89
+                || bytes[1] != (byte) 'P' || bytes[2] != (byte) 'N' || bytes[3] != (byte) 'G'
+                || bytes[4] != (byte) 0x0D || bytes[5] != (byte) 0x0A || bytes[6] != (byte) 0x1A || bytes[7] != (byte) 0x0A
+                || bytes[12] != (byte) 'I' || bytes[13] != (byte) 'H' || bytes[14] != (byte) 'D' || bytes[15] != (byte) 'R') {
+            throw new IllegalArgumentException("not a PNG image");
+        }
+        int width = ((bytes[16] & 0xFF) << 24) | ((bytes[17] & 0xFF) << 16) | ((bytes[18] & 0xFF) << 8) | (bytes[19] & 0xFF);
+        int height = ((bytes[20] & 0xFF) << 24) | ((bytes[21] & 0xFF) << 16) | ((bytes[22] & 0xFF) << 8) | (bytes[23] & 0xFF);
+        return new PngSize(width, height);
     }
 
     private static String stringOrNull(JsonObject o, String key) {
