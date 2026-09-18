@@ -8,26 +8,26 @@ on:
 concurrency:
   cancel-in-progress: false
 
-env:
-  JAVA_HOME: /opt/jdk21
-
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Check out the repository
         uses: https://data.forgejo.org/actions/checkout@v6
 
-      - name: Install Temurin JDK 21
+      - name: Install Temurin JDK 17, 21, and 25
         run: |
           set -euxo pipefail
-          mkdir -p "$JAVA_HOME"
-          curl --retry 3 -fsSL -o /tmp/jdk21.tar.gz \
-            "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
-          tar -xzf /tmp/jdk21.tar.gz -C "$JAVA_HOME" --strip-components=1
-          rm -f /tmp/jdk21.tar.gz
-          "$JAVA_HOME/bin/java" -version
+          for v in 17 21 25; do
+            dir="/opt/jdk${v}"
+            mkdir -p "$dir"
+            curl --retry 3 -fsSL -o "/tmp/jdk${v}.tar.gz" \
+              "https://api.adoptium.net/v3/binary/latest/${v}/ga/linux/x64/jdk/hotspot/normal/eclipse"
+            tar -xzf "/tmp/jdk${v}.tar.gz" -C "$dir" --strip-components=1
+            rm -f "/tmp/jdk${v}.tar.gz"
+            "$dir/bin/java" -version
+          done
 
       - name: Build helper natives for all platforms
         run: |
@@ -41,10 +41,13 @@ jobs:
           cd helper
           GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
 
-      - name: Run Java tests and build the mod jar
+      - name: Run Java tests and build all leaf jars
+        env:
+          JAVA_HOME: /opt/jdk21
+          GRADLE_OPTS: -Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
         run: |
           set -euxo pipefail
-          ./gradlew :mod:test :mod:build --console=plain --no-daemon
+          ./gradlew test build --console=plain --no-daemon
 
       - name: Verify the tag matches the mod version
         run: |
@@ -59,9 +62,13 @@ jobs:
         run: |
           set -euxo pipefail
           version=$(sed -n 's/^mod_version=//p' gradle.properties)
-          base=$(sed -n 's/^archives_base_name=//p' gradle.properties)
+          base=tailcarft
           mkdir -p dist/release
-          cp "mod/build/libs/${base}-${version}.jar" dist/release/
+          for loader in fabric neoforge forge; do
+            for mc in $(sed -n "s/^targets.${loader}=//p" gradle.properties | tr ',' ' '); do
+              cp "${loader}-${mc}/build/libs/${base}-${version}-${loader}-${mc}.jar" dist/release/
+            done
+          done
           (cd dist/release && sha256sum *.jar > SHA256SUMS)
           ls -l dist/release
 

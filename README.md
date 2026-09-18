@@ -1,10 +1,14 @@
 # Tailcarft
 
-A Fabric 1.21.1 client mod that shares a single-player Minecraft world. It
-uses [Tailcat](https://github.com/tailscale/tailcat) for its
-connecting technology — userspace WireGuard with no TUN interface and no
-Tailscale installation. The mod ships a bundled Go helper that owns all
-networking.
+A Minecraft client mod that shares a single-player world. It uses
+[Tailcat](https://github.com/tailscale/tailcat) for its connecting
+technology — userspace WireGuard with no TUN interface and no Tailscale
+installation. The mod ships a bundled Go helper that owns all networking.
+
+It ships one jar per Minecraft version and loader combination: Fabric
+(1.20.1, 1.21.1, 1.21.11, 26.1, 26.2, 26.3), NeoForge (1.21.1, 1.21.11,
+26.1, 26.2, 26.3), and Forge (1.20.1) — twelve jars in all. Install the one
+that matches your Minecraft version and loader.
 
 ## Use
 
@@ -44,21 +48,24 @@ config shows nothing.
 
 ## Build
 
-Requires JDK 21, `curl`, and `tar`:
+Requires JDK 17, 21, and 25 (the toolchain for each Minecraft version), plus
+`curl` and `tar`:
 
 ```sh
 scripts/build-natives.sh
-./gradlew :mod:build
+./gradlew build
 ```
 
-The jar lands in `mod/build/libs/`. For Java-only development, point
+The twelve jars land in `<loader>-<mc>/build/libs/`, named
+`tailcarft-<version>-<loader>-<mc>.jar`. For Java-only development, point
 `MCLINK_HELPER` at a locally built helper binary instead.
 
 ## Releasing
 
 Tag a commit `vX.Y.Z` matching `mod_version` in `gradle.properties` (for
 example `v0.1.0-beta0`). The workflow in `.forgejo/workflows/release.yaml`
-runs the tests, rebuilds the helper natives, and publishes the jar and
+installs the three JDK toolchains, runs the tests, rebuilds the helper
+natives, builds all twelve leaves, and publishes the twelve jars plus
 `SHA256SUMS` as release attachments. A dashed tag (anything after a `-`) is
 published as a pre-release.
 
