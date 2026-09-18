@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Regression tests for the two classes of mixin defects that broke the 26.3
+ * Regression tests for the classes of mixin defects that broke the 26.3
  * clients:
  *
  * <p>1. A non-mixin helper class placed in the declared mixin package
@@ -48,6 +48,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>2. An injection targeting a method that does not exist on the target
  *    (issue #16, {@code Minecraft.destroy} removed in 26.2). Mixin resolves the
  *    target at apply time and throws if the method is absent.
+ *
+ * <p>3. An injection into a zero-argument method whose callback declares an
+ *    extra parameter it cannot match (issue #17, {@code Minecraft.close}
+ *    injected with a {@code Minecraft self} argument). Mixin can only bind the
+ *    instance to a callback when the target also has real parameters, so a lone
+ *    {@code self} on a no-arg target is rejected with an
+ *    {@code InvalidInjectionException} at apply time.
  *
  * <p>These tests run in the {@code test} task of every leaf. They read the
  * mixin classes and their named Minecraft targets straight off the test
@@ -68,6 +75,10 @@ class MixinRegressionTest {
         "Lorg/spongepowered/asm/mixin/injection/ModifyVariable;",
         "Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"
     );
+    private static final String CALLBACK_INFO =
+        "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfo;";
+    private static final String CALLBACK_INFO_RETURNABLE =
+        "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;";
 
     @Test
     void mixinPackageContainsOnlyMixinClasses() throws IOException {
@@ -106,9 +117,48 @@ class MixinRegressionTest {
                 + "target class:\n  " + String.join("\n  ", problems));
     }
 
+    @Test
+    void zeroArgInjectionCallbacksDeclareNoUnmatchableParameters() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                MixinInfo info = parseMixin(readClass(pkg + "." + mixin));
+                for (InjectionInfo inj : info.injections) {
+                    if (inj.atHasTarget) {
+                        continue;
+                    }
+                    for (String target : info.targets) {
+                        if (targetIsZeroArg(target, inj.targetSpec)
+                                && callbackExtraParams(inj.callbackDesc) != 0) {
+                            problems.add(pkg + "." + mixin + " -> " + inj.callbackName
+                                + " (" + inj.callbackDesc + ") injects into the "
+                                + "zero-argument " + target + "." + methodName(inj.targetSpec)
+                                + " but declares an unmatchable parameter; Mixin "
+                                + "rejects the injection at apply time");
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin injections into zero-argument methods declare callback "
+                + "parameters that Mixin cannot match (the instance cannot be "
+                + "bound to a no-argument target):\n  " + String.join("\n  ", problems));
+    }
+
     private static final class MixinInfo {
         final Set<String> targets = new LinkedHashSet<>();
         final Set<String> injectionMethods = new LinkedHashSet<>();
+        final List<InjectionInfo> injections = new ArrayList<>();
+    }
+
+    private static final class InjectionInfo {
+        String callbackName;
+        String callbackDesc;
+        boolean callbackStatic;
+        String targetSpec;
+        boolean atHasTarget;
     }
 
     private static MixinInfo parseMixin(byte[] bytes) {
@@ -146,12 +196,17 @@ class MixinRegressionTest {
             @Override
             public MethodVisitor visitMethod(int access, String name, String descriptor,
                                              String signature, String[] exceptions) {
+                boolean isStatic = (access & Opcodes.ACC_STATIC) != 0;
                 return new MethodVisitor(Opcodes.ASM9) {
                     @Override
                     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
                         if (!INJECTION_ANNOTATIONS.contains(desc)) {
                             return null;
                         }
+                        InjectionInfo inj = new InjectionInfo();
+                        inj.callbackName = name;
+                        inj.callbackDesc = descriptor;
+                        inj.callbackStatic = isStatic;
                         return new AnnotationVisitor(Opcodes.ASM9) {
                             @Override
                             public AnnotationVisitor visitArray(String name) {
@@ -159,11 +214,33 @@ class MixinRegressionTest {
                                     return new AnnotationVisitor(Opcodes.ASM9) {
                                         @Override
                                         public void visit(String n, Object value) {
-                                            info.injectionMethods.add(methodName((String) value));
+                                            String spec = (String) value;
+                                            info.injectionMethods.add(methodName(spec));
+                                            inj.targetSpec = spec;
                                         }
                                     };
                                 }
                                 return null;
+                            }
+
+                            @Override
+                            public AnnotationVisitor visitAnnotation(String name, String atDesc) {
+                                if ("at".equals(name)) {
+                                    return new AnnotationVisitor(Opcodes.ASM9) {
+                                        @Override
+                                        public void visit(String n, Object value) {
+                                            if ("target".equals(n)) {
+                                                inj.atHasTarget = true;
+                                            }
+                                        }
+                                    };
+                                }
+                                return null;
+                            }
+
+                            @Override
+                            public void visitEnd() {
+                                info.injections.add(inj);
                             }
                         };
                     }
@@ -218,6 +295,77 @@ class MixinRegressionTest {
         }, ClassReader.SKIP_CODE);
         if (superHolder[0] != null) {
             collectMethodNames(superHolder[0].replace('/', '.'), into, visited);
+        }
+    }
+
+    /**
+     * The number of a callback method's parameters other than its trailing
+     * {@code CallbackInfo}/{@code CallbackInfoReturnable}.
+     */
+    private static int callbackExtraParams(String descriptor) {
+        Type[] args = Type.getArgumentTypes(descriptor);
+        int n = args.length;
+        if (n == 0) {
+            return 0;
+        }
+        String last = args[n - 1].getDescriptor();
+        return (CALLBACK_INFO.equals(last) || CALLBACK_INFO_RETURNABLE.equals(last)) ? n - 1 : n;
+    }
+
+    /**
+     * Whether the target method named by {@code targetSpec} takes no arguments.
+     * A spec carrying a descriptor is zero-argument iff its parameter list is
+     * empty; a bare name is resolved against the target's class hierarchy, and
+     * is treated as ambiguous (and skipped) if the name has more than one
+     * overload.
+     */
+    private static boolean targetIsZeroArg(String target, String targetSpec) {
+        if (targetSpec == null) {
+            return false;
+        }
+        String spec = targetSpec.trim();
+        int paren = spec.indexOf('(');
+        if (paren >= 0) {
+            return paren + 1 < spec.length() && spec.charAt(paren + 1) == ')';
+        }
+        Set<String> descriptors = methodDescriptorsOfHierarchy(target, methodName(spec));
+        return descriptors.size() == 1 && descriptors.contains("()V");
+    }
+
+    private static Set<String> methodDescriptorsOfHierarchy(String dotName, String methodName) {
+        Set<String> descriptors = new LinkedHashSet<>();
+        collectMethodDescriptors(dotName, methodName, descriptors, new LinkedHashSet<>());
+        return descriptors;
+    }
+
+    private static void collectMethodDescriptors(String dotName, String methodName,
+                                                 Set<String> into, Set<String> visited) {
+        if (!visited.add(dotName)) {
+            return;
+        }
+        byte[] bytes = tryReadClass(dotName);
+        if (bytes == null) {
+            return;
+        }
+        String[] superHolder = new String[1];
+        new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public void visit(int version, int access, String className, String signature,
+                              String superName, String[] interfaces) {
+                superHolder[0] = superName;
+            }
+
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                             String signature, String[] exceptions) {
+                if (name.equals(methodName)) {
+                    into.add(descriptor);
+                }
+                return null;
+            }
+        }, ClassReader.SKIP_CODE);
+        if (superHolder[0] != null) {
+            collectMethodDescriptors(superHolder[0].replace('/', '.'), methodName, into, visited);
         }
     }
 

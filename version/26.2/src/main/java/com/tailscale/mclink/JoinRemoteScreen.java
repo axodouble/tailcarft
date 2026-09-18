@@ -75,7 +75,6 @@ public final class JoinRemoteScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        extractBackground(context, mouseX, mouseY, delta);
         super.extractRenderState(context, mouseX, mouseY, delta);
         context.centeredText(font, title, width / 2, height / 2 - 58, 0xffffff);
         context.centeredText(font, status, width / 2, height / 2 + 46, 0xffaaaa);
