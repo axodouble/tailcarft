@@ -7,3 +7,10 @@ def mc = project.name.substring(project.name.indexOf('-') + 1)
 neoForge {
     version = rootProject.findProperty("neoforge.${mc}") as String
 }
+
+// The moddev neoForge configuration does not propagate to the test runtime
+// classpath, but the shared common tests exercise slf4j/gson-backed classes.
+dependencies {
+    testRuntimeOnly 'org.slf4j:slf4j-api:2.0.9'
+    testRuntimeOnly 'com.google.code.gson:gson:2.10.1'
+}

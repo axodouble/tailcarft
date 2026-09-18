@@ -1,0 +1,15 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "BSD-3-Clause"
+
+[[mods]]
+modId = "tailcarft"
+version = "${version}"
+displayName = "Tailcarft"
+description = "Share Minecraft worlds through Tailcarft's userspace WireGuard transport."
+
+[[mixins]]
+config = "mclink.mixins.json"
+
+[[mixins]]
+config = "mclink.neoforge.mixins.json"
