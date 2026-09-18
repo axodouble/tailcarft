@@ -7,15 +7,11 @@
 
 package com.tailscale.mclink;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -31,13 +27,16 @@ public class TailcarftMod {
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> ServerMod.onStopping());
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientMod.onInitializeClient();
-            NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class,
-                    event -> ClientMod.onTick(Minecraft.getInstance()));
-            NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
-                Screen screen = event.getScreen();
-                ClientMod.onScreenInit(Minecraft.getInstance(), screen, screen.width, screen.height);
-            });
+            // Client wiring lives in NeoForgeClientInit, a client-only class loaded
+            // reflectively so THIS class's bytecode (verified on a dedicated server,
+            // where net.minecraft.client.* is absent) never references a client class.
+            // The gate is false on a dedicated server, so the client class is never
+            // loaded there.
+            try {
+                Class.forName("com.tailscale.mclink.NeoForgeClientInit").getMethod("init").invoke(null);
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException("Failed to initialize Tailcarft client", e);
+            }
         }
     }
 }
