@@ -6,7 +6,8 @@
     "ServerListMixin",
     "MultiplayerScreenMixin",
     "ConnectScreenMixin",
-    "ScreenAccessorMixin"
+    "ScreenAccessorMixin",
+    "PauseScreenAccessorMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

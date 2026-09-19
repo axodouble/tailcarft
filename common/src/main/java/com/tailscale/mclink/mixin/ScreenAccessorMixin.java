@@ -20,8 +20,16 @@ public abstract class ScreenAccessorMixin implements ScreenAccessor {
     @Shadow
     protected abstract <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget);
 
+    @Shadow
+    protected abstract void removeWidget(GuiEventListener widget);
+
     @Override
     public <T extends GuiEventListener & Renderable & NarratableEntry> T mclink$addRenderableWidget(T widget) {
         return this.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void mclink$removeWidget(GuiEventListener widget) {
+        this.removeWidget(widget);
     }
 }

@@ -51,17 +51,14 @@ public final class ClientMod {
     }
 
     private static void addShareButton(Minecraft client, Screen screen) {
-        Button lan = findButton(screen, "menu.shareToLan");
-        if (lan == null) {
+        Button anchor = ((PauseScreenAccessor) screen).mclink$disconnectButton();
+        if (anchor == null) {
             return;
         }
-        int newY = lan.getY() + lan.getHeight() + 4;
-        screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
-                .filter(button -> button.getY() > lan.getY())
-                .forEach(button -> button.setY(button.getY() + 24));
+        removeOurs(screen, "mclink.share");
         ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.share"),
                 button -> client.setScreen(new ShareScreen(screen)))
-                .bounds(lan.getX(), newY, lan.getWidth(), lan.getHeight()).build());
+                .bounds(anchor.getX(), anchor.getY() + anchor.getHeight() + 4, anchor.getWidth(), anchor.getHeight()).build());
     }
 
     private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {
@@ -69,6 +66,7 @@ public final class ClientMod {
         if (direct == null) {
             return;
         }
+        removeOurs(screen, "mclink.join");
         int firstRowY = direct.getY();
         screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
                 .filter(button -> button.getY() == firstRowY)
@@ -82,6 +80,13 @@ public final class ClientMod {
         ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.join"),
                 button -> client.setScreen(new JoinRemoteScreen(screen)))
                 .bounds(width / 2 - 102, firstRowY, 204, 20).build());
+    }
+
+    private static void removeOurs(Screen screen, String translationKey) {
+        Button ours;
+        while ((ours = findButton(screen, translationKey)) != null) {
+            ((ScreenAccessor) screen).mclink$removeWidget(ours);
+        }
     }
 
     private static Button findButton(Screen screen, String translationKey) {

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -64,6 +65,7 @@ class MixinRegressionTest {
 
     private static final String MIXIN_PKG = "com.tailscale.mclink.mixin";
     private static final String MIXIN_ANNOTATION = "Lorg/spongepowered/asm/mixin/Mixin;";
+    private static final String SHADOW_ANNOTATION = "Lorg/spongepowered/asm/mixin/Shadow;";
     private static final String[] CONFIG_NAMES = {
         "mclink.mixins.json", "mclink.neoforge.mixins.json", "mclink.forge.mixins.json"
     };
@@ -118,6 +120,41 @@ class MixinRegressionTest {
     }
 
     @Test
+    void shadowTargetsExistOnTargetClasses() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                byte[] bytes = readClass(pkg + "." + mixin);
+                MixinInfo info = parseMixin(bytes);
+                ShadowInfo shadows = parseShadows(bytes);
+                if (shadows.fields.isEmpty() && shadows.methods.isEmpty()) {
+                    continue;
+                }
+                for (String target : info.targets) {
+                    Set<String> targetMethods = methodNamesOfHierarchy(target);
+                    Set<String> targetFields = fieldNamesOfHierarchy(target);
+                    for (String field : shadows.fields) {
+                        if (!targetFields.contains(field)) {
+                            problems.add(pkg + "." + mixin + " -> " + target
+                                + " has no field '" + field + "' (declared as @Shadow)");
+                        }
+                    }
+                    for (String method : shadows.methods) {
+                        if (!targetMethods.contains(method)) {
+                            problems.add(pkg + "." + mixin + " -> " + target
+                                + " has no method '" + method + "' (declared as @Shadow)");
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin @Shadow fields/methods do not exist on their target class:\n  "
+                + String.join("\n  ", problems));
+    }
+
+    @Test
     void zeroArgInjectionCallbacksDeclareNoUnmatchableParameters() throws IOException {
         List<String> problems = new ArrayList<>();
         for (JsonObject config : mixinConfigs()) {
@@ -151,6 +188,11 @@ class MixinRegressionTest {
         final Set<String> targets = new LinkedHashSet<>();
         final Set<String> injectionMethods = new LinkedHashSet<>();
         final List<InjectionInfo> injections = new ArrayList<>();
+    }
+
+    private static final class ShadowInfo {
+        final Set<String> fields = new LinkedHashSet<>();
+        final Set<String> methods = new LinkedHashSet<>();
     }
 
     private static final class InjectionInfo {
@@ -250,6 +292,40 @@ class MixinRegressionTest {
         return info;
     }
 
+    private static ShadowInfo parseShadows(byte[] bytes) {
+        ShadowInfo info = new ShadowInfo();
+        new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public FieldVisitor visitField(int access, String name, String descriptor,
+                                           String signature, Object value) {
+                return new FieldVisitor(Opcodes.ASM9) {
+                    @Override
+                    public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                        if (SHADOW_ANNOTATION.equals(desc)) {
+                            info.fields.add(name);
+                        }
+                        return null;
+                    }
+                };
+            }
+
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                             String signature, String[] exceptions) {
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override
+                    public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                        if (SHADOW_ANNOTATION.equals(desc)) {
+                            info.methods.add(name);
+                        }
+                        return null;
+                    }
+                };
+            }
+        }, ClassReader.SKIP_CODE);
+        return info;
+    }
+
     private static boolean hasMixinAnnotation(byte[] bytes) {
         boolean[] found = {false};
         new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
@@ -295,6 +371,40 @@ class MixinRegressionTest {
         }, ClassReader.SKIP_CODE);
         if (superHolder[0] != null) {
             collectMethodNames(superHolder[0].replace('/', '.'), into, visited);
+        }
+    }
+
+    private static Set<String> fieldNamesOfHierarchy(String dotName) {
+        Set<String> names = new LinkedHashSet<>();
+        collectFieldNames(dotName, names, new LinkedHashSet<>());
+        return names;
+    }
+
+    private static void collectFieldNames(String dotName, Set<String> into, Set<String> visited) {
+        if (!visited.add(dotName)) {
+            return;
+        }
+        byte[] bytes = tryReadClass(dotName);
+        if (bytes == null) {
+            return;
+        }
+        String[] superHolder = new String[1];
+        new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public void visit(int version, int access, String className, String signature,
+                              String superName, String[] interfaces) {
+                superHolder[0] = superName;
+            }
+
+            @Override
+            public FieldVisitor visitField(int access, String name, String descriptor,
+                                           String signature, Object value) {
+                into.add(name);
+                return null;
+            }
+        }, ClassReader.SKIP_CODE);
+        if (superHolder[0] != null) {
+            collectFieldNames(superHolder[0].replace('/', '.'), into, visited);
         }
     }
 

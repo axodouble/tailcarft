@@ -13,4 +13,6 @@ import net.minecraft.client.gui.narration.NarratableEntry;
 
 public interface ScreenAccessor {
     <T extends GuiEventListener & Renderable & NarratableEntry> T mclink$addRenderableWidget(T widget);
+
+    void mclink$removeWidget(GuiEventListener widget);
 }
