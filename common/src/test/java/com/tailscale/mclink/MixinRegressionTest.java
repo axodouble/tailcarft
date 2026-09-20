@@ -184,6 +184,41 @@ class MixinRegressionTest {
                 + "bound to a no-argument target):\n  " + String.join("\n  ", problems));
     }
 
+    @Test
+    void injectionCallbacksMatchTargetArity() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                MixinInfo info = parseMixin(readClass(pkg + "." + mixin));
+                for (InjectionInfo inj : info.injections) {
+                    if (inj.atHasTarget) {
+                        continue;
+                    }
+                    for (String target : info.targets) {
+                        Integer targetArity = targetMethodParamCount(target, inj.targetSpec);
+                        if (targetArity == null) {
+                            continue;
+                        }
+                        int callbackArity = callbackExtraParams(inj.callbackDesc);
+                        if (callbackArity != targetArity) {
+                            problems.add(pkg + "." + mixin + " -> " + inj.callbackName
+                                + " (" + inj.callbackDesc + ") injects into " + target + "."
+                                + methodName(inj.targetSpec) + " (arity " + targetArity
+                                + ") but its callback declares " + callbackArity
+                                + " parameter(s) before CallbackInfo; Mixin rejects the "
+                                + "mismatch at apply time");
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin @Inject callbacks do not match their target method's parameter "
+                + "count (an extra leading parameter, such as the instance, is "
+                + "rejected at apply time):\n  " + String.join("\n  ", problems));
+    }
+
     private static final class MixinInfo {
         final Set<String> targets = new LinkedHashSet<>();
         final Set<String> injectionMethods = new LinkedHashSet<>();
@@ -440,6 +475,27 @@ class MixinRegressionTest {
         }
         Set<String> descriptors = methodDescriptorsOfHierarchy(target, methodName(spec));
         return descriptors.size() == 1 && descriptors.contains("()V");
+    }
+
+    /**
+     * The parameter count of the target method named by {@code targetSpec}, or
+     * {@code null} if the spec is a bare name with more than one overload on the
+     * target's hierarchy. A spec carrying a descriptor is counted directly.
+     */
+    private static Integer targetMethodParamCount(String target, String targetSpec) {
+        if (targetSpec == null) {
+            return null;
+        }
+        String spec = targetSpec.trim();
+        int paren = spec.indexOf('(');
+        if (paren >= 0) {
+            return Type.getArgumentTypes(spec.substring(paren)).length;
+        }
+        Set<String> descriptors = methodDescriptorsOfHierarchy(target, methodName(spec));
+        if (descriptors.size() != 1) {
+            return null;
+        }
+        return Type.getArgumentTypes(descriptors.iterator().next()).length;
     }
 
     private static Set<String> methodDescriptorsOfHierarchy(String dotName, String methodName) {
