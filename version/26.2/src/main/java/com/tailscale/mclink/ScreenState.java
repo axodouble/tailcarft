@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.HttpUtil;
 
 import java.time.Duration;
@@ -36,7 +37,7 @@ public final class ScreenState implements AutoCloseable {
         int port = server.getPort();
         if (port <= 0) {
             port = HttpUtil.getAvailablePort();
-            if (!server.publishServer(server.getMultiplayerScope(), server.getDefaultGameType(), false, port)) {
+            if (!server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), false, port)) {
                 server.setUsesAuthentication(previousOnlineMode);
                 return CompletableFuture.failedFuture(new IllegalStateException("Minecraft could not publish this world"));
             }

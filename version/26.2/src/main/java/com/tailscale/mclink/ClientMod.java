@@ -12,7 +12,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.network.chat.Component;
 
@@ -32,9 +31,11 @@ public final class ClientMod {
     public static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
         if (screen instanceof PauseScreen && client.hasSingleplayerServer()) {
             addShareButton(client, screen);
-        } else if (screen instanceof JoinMultiplayerScreen) {
-            addConnectButton(client, screen, width, height);
         }
+    }
+
+    public static void repositionConnectButton(Minecraft client, Screen screen, int width, int height) {
+        addConnectButton(client, screen, width, height);
     }
 
     public static void onTick(Minecraft client) {
