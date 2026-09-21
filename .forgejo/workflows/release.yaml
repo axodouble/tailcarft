@@ -56,28 +56,35 @@ jobs:
       # Go
       # ─────────────────────────────────────────────────────────────
 
-      - name: Locate Go
-        id: go
-        run: |
-          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/**/bin/go 2>/dev/null | head -n 1)
-
-          if [ -z "$GO" ]; then
-            echo "Could not find Go"
-            exit 1
-          fi
-
-          echo "path=$GO" >> "$FORGEJO_OUTPUT"
-          "$GO" version
-
-      - name: Cache Go
+      - name: Cache mclink Go
         uses: https://data.forgejo.org/actions/cache@v4
         with:
           path: |
+            ~/.cache/mclink/tsgo
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('helper/go.sum', 'helper/go.mod') }}
+          key: ${{ forgejo.os }}-go-${{ hashFiles('helper/go.mod', 'helper/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ forgejo.os }}-go-
+
+      - name: Build helper natives for all platforms
+        run: |
+          set -euxo pipefail
+          bash scripts/build-natives.sh
+
+      - name: Run Go tests
+        run: |
+          set -euxo pipefail
+          GO=$(find "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo" \
+            -type f \
+            -path '*/bin/go' \
+            -print -quit)
+
+          test -n "$GO"
+          "$GO" version
+
+          cd helper
+          GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
 
       # ─────────────────────────────────────────────────────────────
       # Gradle
