@@ -16,18 +16,86 @@ jobs:
       - name: Check out the repository
         uses: https://data.forgejo.org/actions/checkout@v6
 
+      # ─────────────────────────────────────────────────────────────
+      # JDKs
+      # ─────────────────────────────────────────────────────────────
+
+      - name: Cache Temurin JDKs
+        id: jdk-cache
+        uses: https://data.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            /opt/jdk17
+            /opt/jdk21
+            /opt/jdk25
+          key: ${{ runner.os }}-temurin-jdks-17-21-25-v1
+
       - name: Install Temurin JDK 17, 21, and 25
+        if: steps.jdk-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
+
           for v in 17 21 25; do
             dir="/opt/jdk${v}"
             mkdir -p "$dir"
-            curl --retry 3 -fsSL -o "/tmp/jdk${v}.tar.gz" \
+
+            curl --retry 3 -fsSL \
+              -o "/tmp/jdk${v}.tar.gz" \
               "https://api.adoptium.net/v3/binary/latest/${v}/ga/linux/x64/jdk/hotspot/normal/eclipse"
-            tar -xzf "/tmp/jdk${v}.tar.gz" -C "$dir" --strip-components=1
+
+            tar -xzf "/tmp/jdk${v}.tar.gz" \
+              -C "$dir" \
+              --strip-components=1
+
             rm -f "/tmp/jdk${v}.tar.gz"
+
             "$dir/bin/java" -version
           done
+
+      # ─────────────────────────────────────────────────────────────
+      # Go
+      # ─────────────────────────────────────────────────────────────
+
+      - name: Locate Go
+        id: go
+        run: |
+          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/**/bin/go 2>/dev/null | head -n 1)
+
+          if [ -z "$GO" ]; then
+            echo "Could not find Go"
+            exit 1
+          fi
+
+          echo "path=$GO" >> "$FORGEJO_OUTPUT"
+          "$GO" version
+
+      - name: Cache Go
+        uses: https://data.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('helper/go.sum', 'helper/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # ─────────────────────────────────────────────────────────────
+      # Gradle
+      # ─────────────────────────────────────────────────────────────
+
+      - name: Cache Gradle
+        uses: https://data.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # ─────────────────────────────────────────────────────────────
+      # Build
+      # ─────────────────────────────────────────────────────────────
 
       - name: Build helper natives for all platforms
         run: |
@@ -37,7 +105,7 @@ jobs:
       - name: Run Go tests
         run: |
           set -euxo pipefail
-          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/*/bin/go | head -n 1)
+          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/**/bin/go 2>/dev/null | head -n 1)
           cd helper
           GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
 
@@ -46,11 +114,12 @@ jobs:
           JAVA_HOME: /opt/jdk21
         run: |
           set -euxo pipefail
-          # org.gradle.java.installations.* must be on the command line (or in
-          # gradle.properties); Gradle ignores them when set via GRADLE_OPTS, so the
-          # /opt/jdk* toolchains would otherwise go undetected.
           JDKS=-Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
           ./gradlew $JDKS build --console=plain
+
+      # ─────────────────────────────────────────────────────────────
+      # Release
+      # ─────────────────────────────────────────────────────────────
 
       - name: Verify the tag matches the mod version
         run: |
