@@ -56,23 +56,30 @@ jobs:
       # Go
       # ─────────────────────────────────────────────────────────────
 
+      # Keyed on the whole helper source (and the build script, which pins the
+      # Tailscale Go revision), so a hit means the built natives in the cache
+      # are exactly up to date and rebuilding/testing is skipped.
       - name: Cache mclink Go
+        id: go-cache
         uses: https://data.forgejo.org/actions/cache@v4
         with:
           path: |
             ~/.cache/mclink/tsgo
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ forgejo.os }}-go-${{ hashFiles('helper/go.mod', 'helper/go.sum') }}
+            common/src/main/resources/assets/mclink/native
+          key: ${{ forgejo.os }}-go-${{ hashFiles('helper/**', 'scripts/build-natives.sh') }}
           restore-keys: |
             ${{ forgejo.os }}-go-
 
       - name: Build helper natives for all platforms
+        if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
           bash scripts/build-natives.sh
 
       - name: Run Go tests
+        if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
           GO=$(find "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo" \
@@ -104,17 +111,16 @@ jobs:
       # Build
       # ─────────────────────────────────────────────────────────────
 
-      - name: Build helper natives for all platforms
+      # The natives are gitignored and only exist from the build above (or the
+      # cache restore), so fail fast if a cache hit restored nothing usable.
+      - name: Verify helper natives are present
         run: |
-          set -euxo pipefail
-          bash scripts/build-natives.sh
-
-      - name: Run Go tests
-        run: |
-          set -euxo pipefail
-          GO=$(ls -d "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo"/**/bin/go 2>/dev/null | head -n 1)
-          cd helper
-          GOFLAGS=-mod=mod CGO_ENABLED=0 "$GO" test ./...
+          set -euo pipefail
+          root=common/src/main/resources/assets/mclink/native
+          test -f "$root/checksums.json"
+          for d in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 windows-arm64; do
+            test -n "$(ls "$root/$d"/mclink-helper* 2>/dev/null)"
+          done
 
       - name: Build all leaf jars
         env:
