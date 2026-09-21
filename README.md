@@ -6,9 +6,8 @@ technology — userspace WireGuard with no TUN interface and no Tailscale
 installation. The mod ships a bundled Go helper that owns all networking.
 
 It ships one jar per Minecraft version and loader combination: Fabric
-(1.20.1, 1.21.1, 1.21.11, 26.1, 26.2, 26.3), NeoForge (1.21.1, 1.21.11,
-26.1, 26.2, 26.3), and Forge (1.20.1) — twelve jars in all. Install the one
-that matches your Minecraft version and loader.
+(1.20.1, 1.21.1, 26.3), NeoForge (1.21.1, 26.3), and Forge (1.20.1) six 
+jars in all. Install the one that matches your Minecraft version and loader.
 
 ## Use
 
