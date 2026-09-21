@@ -1,5 +1,10 @@
 # Tailcarft
 
+[![Issues](https://git.jas.pe/labs/tailcarft/badges/issues.svg)](https://git.jas.pe/labs/tailcarft/issues)
+[![Releases](https://git.jas.pe/labs/tailcarft/badges/release.svg)](https://git.jas.pe/labs/tailcarft/releases/latest)
+[![Workflows](https://git.jas.pe/labs/tailcarft/badges/workflows/release.yaml/badge.svg)](https://git.jas.pe/labs/tailcarft/actions?workflow=release.yaml&actor=0&status=0)
+[![Commit](https://img.shields.io/gitea/last-commit/labs/tailcarft?gitea_url=https%3A%2F%2Fgit.jas.pe)](https://git.jas.pe/labs/tailcarft/)
+
 A Minecraft client mod that shares a single-player world. It uses
 [Tailcat](https://github.com/tailscale/tailcat) for its connecting
 technology — userspace WireGuard with no TUN interface and no Tailscale
