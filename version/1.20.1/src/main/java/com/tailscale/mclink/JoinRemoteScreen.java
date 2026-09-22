@@ -59,7 +59,7 @@ public final class JoinRemoteScreen extends Screen {
         ClientMod.state().join(minecraft, parent, invite.getValue()).whenComplete((ignored, error) -> {
             if (error != null) {
                 minecraft.execute(() -> {
-                    status = Component.literal("Could not connect: " + ShareScreen.rootMessage(error));
+                    status = Component.literal("Could not connect: " + rootMessage(error));
                     invite.setEditable(true);
                     connect.active = true;
                 });
@@ -79,5 +79,12 @@ public final class JoinRemoteScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
         context.drawCenteredString(font, title, width / 2, height / 2 - 58, 0xffffff);
         context.drawCenteredString(font, status, width / 2, height / 2 + 46, 0xffaaaa);
+    }
+
+    private static String rootMessage(Throwable error) {
+        while (error.getCause() != null) {
+            error = error.getCause();
+        }
+        return error.getMessage() == null ? error.toString() : error.getMessage();
     }
 }

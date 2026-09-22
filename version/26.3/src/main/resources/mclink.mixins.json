@@ -7,7 +7,6 @@
     "MultiplayerScreenMixin",
     "ConnectScreenMixin",
     "ScreenAccessorMixin",
-    "PauseScreenAccessorMixin",
     "IntegratedServerMixin"
   ],
   "injectors": { "defaultRequire": 1 }

@@ -14,8 +14,6 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.HttpUtil;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,39 +27,6 @@ public final class ScreenState implements AutoCloseable {
 
     private Session session;
     private volatile String lastError;
-    private boolean suppressPublishHook;
-
-    public synchronized CompletableFuture<String> share(Minecraft client) {
-        IntegratedServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return CompletableFuture.failedFuture(new IllegalStateException("No integrated server is running"));
-        }
-        int port = server.getPort();
-        Session existing = session;
-        if (existing != null) {
-            if (existing.mode == SessionMode.HOST && existing.process.isAlive()
-                    && port > 0 && existing.targetPort == port) {
-                return existing.invite;
-            }
-            stop();
-        }
-        if (port > 0) {
-            return startHosting(server, port, null, false);
-        }
-        boolean previousOnlineMode = server.usesAuthentication();
-        enableDevelopmentOfflineAuth(server);
-        port = HttpUtil.getAvailablePort();
-        suppressPublishHook = true;
-        try {
-            if (!server.publishServer(MinecraftServer.MultiplayerScope.LAN, false, port)) {
-                server.setUsesAuthentication(previousOnlineMode);
-                return CompletableFuture.failedFuture(new IllegalStateException("Minecraft could not publish this world"));
-            }
-        } finally {
-            suppressPublishHook = false;
-        }
-        return startHosting(server, port, server, previousOnlineMode);
-    }
 
     /**
      * Called by the {@code IntegratedServer.publishServer} mixin when vanilla
@@ -71,9 +36,6 @@ public final class ScreenState implements AutoCloseable {
      * restarts the helper on the new one.
      */
     public synchronized void onPublished(IntegratedServer server, int port) {
-        if (suppressPublishHook) {
-            return;
-        }
         Session existing = session;
         if (existing != null) {
             if (existing.mode == SessionMode.HOST && existing.process.isAlive()
@@ -83,7 +45,7 @@ public final class ScreenState implements AutoCloseable {
             }
             stop();
         }
-        CompletableFuture<String> invite = startHosting(server, port, null, false);
+        CompletableFuture<String> invite = startHosting(server, port);
         invite.whenComplete((code, error) -> {
             if (error != null && lastError == null) {
                 lastError = error.getMessage() == null ? error.toString() : error.getMessage();
@@ -121,8 +83,7 @@ public final class ScreenState implements AutoCloseable {
     public synchronized CompletableFuture<Void> join(Minecraft client, Screen parent, String invitation) {
         stop();
         try {
-            Session started = start(SessionMode.JOIN, List.of("join", "--invite", invitation.trim()),
-                    null, false, -1);
+            Session started = start(SessionMode.JOIN, List.of("join", "--invite", invitation.trim()), -1);
             return awaitReady(started).thenAccept(event -> client.execute(() -> {
                 ServerData info = new ServerData("Tailcarft World", event.address(), ServerData.Type.OTHER);
                 ConnectScreen.startConnecting(parent, client, ServerAddress.parseString(event.address()), info, false, null);
@@ -158,9 +119,6 @@ public final class ScreenState implements AutoCloseable {
         Session stopped = session;
         session = null;
         stopped.process.close();
-        if (stopped.offlineAuthServer != null) {
-            stopped.offlineAuthServer.setUsesAuthentication(stopped.previousOnlineMode);
-        }
     }
 
     public String takeError() {
@@ -174,29 +132,24 @@ public final class ScreenState implements AutoCloseable {
         stop();
     }
 
-    private Session start(SessionMode mode, List<String> arguments, IntegratedServer offlineAuthServer,
-                          boolean previousOnlineMode, int targetPort) throws Exception {
+    private Session start(SessionMode mode, List<String> arguments, int targetPort) throws Exception {
         HelperProcess process = HelperProcess.start(arguments, event -> onEvent(event));
-        session = new Session(mode, process, offlineAuthServer, previousOnlineMode, targetPort);
+        session = new Session(mode, process, targetPort);
         return session;
     }
 
-    private CompletableFuture<String> startHosting(IntegratedServer server, int port,
-            IntegratedServer offlineAuthServer, boolean previousOnlineMode) {
+    private CompletableFuture<String> startHosting(IntegratedServer server, int port) {
         try {
             Path stateDir = server.getServerDirectory().resolve("tailcarft");
             Files.createDirectories(stateDir);
             List<String> arguments = new ArrayList<>(List.of("host", "--target", "127.0.0.1:" + port));
             arguments.add("--state-file");
             arguments.add(stateDir.resolve("state.json").toString());
-            Session started = start(SessionMode.HOST, arguments, offlineAuthServer, previousOnlineMode, port);
+            Session started = start(SessionMode.HOST, arguments, port);
             started.invite = awaitReady(started).thenApply(HelperEvent::invite);
             return started.invite;
         } catch (Exception e) {
             stop();
-            if (offlineAuthServer != null) {
-                offlineAuthServer.setUsesAuthentication(previousOnlineMode);
-            }
             return CompletableFuture.failedFuture(e);
         }
     }
@@ -222,29 +175,17 @@ public final class ScreenState implements AutoCloseable {
         }
     }
 
-    private static void enableDevelopmentOfflineAuth(IntegratedServer server) {
-        if (GameRuntime.get().isDevelopment()
-                && "1".equals(System.getenv("MCLINK_DEV_OFFLINE_AUTH"))) {
-            server.setUsesAuthentication(false);
-        }
-    }
-
     private enum SessionMode { HOST, JOIN }
 
     private static final class Session {
         final SessionMode mode;
         final HelperProcess process;
-        final IntegratedServer offlineAuthServer;
-        final boolean previousOnlineMode;
         final int targetPort;
         CompletableFuture<String> invite;
 
-        Session(SessionMode mode, HelperProcess process, IntegratedServer offlineAuthServer,
-                boolean previousOnlineMode, int targetPort) {
+        Session(SessionMode mode, HelperProcess process, int targetPort) {
             this.mode = mode;
             this.process = process;
-            this.offlineAuthServer = offlineAuthServer;
-            this.previousOnlineMode = previousOnlineMode;
             this.targetPort = targetPort;
         }
     }

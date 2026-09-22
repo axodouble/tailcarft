@@ -10,7 +10,6 @@ package com.tailscale.mclink;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
-import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.network.chat.Component;
@@ -28,10 +27,9 @@ public final class ClientMod {
         return state;
     }
 
+    // Kept for the shared loader screen-init hook; 26.3 wires the connect
+    // button through MultiplayerScreenMixin.repositionElements instead.
     public static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
-        if (screen instanceof PauseScreen && client.hasSingleplayerServer()) {
-            addShareButton(client, screen);
-        }
     }
 
     public static void repositionConnectButton(Minecraft client, Screen screen, int width, int height) {
@@ -49,17 +47,6 @@ public final class ClientMod {
 
     public static void onClientStopping(Minecraft client) {
         state.close();
-    }
-
-    private static void addShareButton(Minecraft client, Screen screen) {
-        Button anchor = ((PauseScreenAccessor) screen).mclink$disconnectButton();
-        if (anchor == null) {
-            return;
-        }
-        removeOurs(screen, "mclink.share");
-        ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.share"),
-                button -> client.gui.setScreen(new ShareScreen(screen)))
-                .bounds(anchor.getX(), anchor.getY() + anchor.getHeight() + 4, anchor.getWidth(), anchor.getHeight()).build());
     }
 
     private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {

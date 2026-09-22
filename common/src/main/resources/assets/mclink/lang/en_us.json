@@ -1,12 +1,8 @@
 {
-  "mclink.share": "Share with Tailcarft",
   "mclink.join": "Connect with Tailcarft",
   "mclink.invite": "Tailcarft Invitation",
   "mclink.invite_hint": "Paste an mcl1_ Tailcarft invitation",
   "mclink.starting": "Starting secure tunnel…",
-  "mclink.sharing": "World is shared remotely",
-  "mclink.copy": "Copy Invitation",
-  "mclink.stop": "Stop Sharing",
   "mclink.connect": "Connect",
   "mclink.server.label": "Connected via Tailcarft tunnel"
 }
