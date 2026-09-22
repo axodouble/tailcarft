@@ -7,7 +7,9 @@
     "MultiplayerScreenMixin",
     "ConnectScreenMixin",
     "ScreenAccessorMixin",
-    "IntegratedServerMixin"
+    "IntegratedServerMixin",
+    "MinecraftTickMixin",
+    "ShareToLanScreenMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

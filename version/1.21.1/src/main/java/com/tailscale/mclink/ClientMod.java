@@ -7,8 +7,10 @@
 
 package com.tailscale.mclink;
 
+import com.mojang.blaze3d.platform.ClipboardManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
@@ -65,6 +67,38 @@ public final class ClientMod {
         ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.join"),
                 button -> client.setScreen(new JoinRemoteScreen(screen)))
                 .bounds(width / 2 - 102, firstRowY, 204, 20).build());
+    }
+
+    /**
+     * Adds a "Copy Tailcarft Invite" button above the port field when a host
+     * session has a ready invite, so the invite can be copied to the
+     * clipboard without selecting it in the chat.
+     */
+    public static void addCopyInviteButton(Screen screen, Minecraft client) {
+        String invite = state().currentInvite();
+        if (invite == null) {
+            return;
+        }
+        removeOurs(screen, "mclink.copy_invite");
+        for (var child : screen.children()) {
+            if (child instanceof EditBox edit) {
+                ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(
+                        Component.translatable("mclink.copy_invite"),
+                        button -> {
+                            button.setMessage(Component.translatable("mclink.copied"));
+                            new ClipboardManager().setClipboard(client.getWindow().getWindow(), invite);
+                        })
+                    .bounds(edit.getX() - 75, edit.getY() - 24, 300, 20).build());
+                return;
+            }
+        }
+    }
+
+    private static void removeOurs(Screen screen, String translationKey) {
+        Button ours;
+        while ((ours = findButton(screen, translationKey)) != null) {
+            ((ScreenAccessor) screen).mclink$removeWidget(ours);
+        }
     }
 
     private static Button findButton(Screen screen, String translationKey) {

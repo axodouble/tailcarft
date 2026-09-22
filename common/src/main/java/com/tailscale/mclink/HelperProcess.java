@@ -40,6 +40,7 @@ public final class HelperProcess implements AutoCloseable {
         process.onExit().thenAccept(p -> {
             if (!closing.get()) {
                 IOException failure = new IOException("helper exited unexpectedly (status " + p.exitValue() + ")");
+                LOG.warn("{}", failure.getMessage());
                 ready.completeExceptionally(failure);
                 events.accept(new HelperEvent("error", null, null, null, "unexpected_exit", failure.getMessage()));
             }
@@ -51,6 +52,7 @@ public final class HelperProcess implements AutoCloseable {
         List<String> command = new ArrayList<>();
         command.add(executable.toString());
         command.addAll(arguments);
+        LOG.info("starting helper: {}", String.join(" ", command));
         return new HelperProcess(new ProcessBuilder(command).start(), events);
     }
 
@@ -64,8 +66,10 @@ public final class HelperProcess implements AutoCloseable {
             while ((line = reader.readLine()) != null) {
                 HelperEvent event = HelperEvent.parse(line);
                 if (event.type().equals("ready")) {
+                    LOG.info("helper ready (mode {})", event.mode());
                     ready.complete(event);
                 } else if (event.type().equals("error")) {
+                    LOG.warn("helper error: {} {}", event.code(), event.message());
                     ready.completeExceptionally(new IOException(event.code() + ": " + event.message()));
                 }
                 events.accept(event);

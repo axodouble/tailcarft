@@ -7,6 +7,7 @@
 
 package com.tailscale.mclink;
 
+import com.mojang.blaze3d.platform.ClipboardManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -68,6 +69,27 @@ public final class ClientMod {
         ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.join"),
                 button -> client.gui.setScreen(new JoinRemoteScreen(screen)))
                 .bounds(width / 2 - 102, firstRowY, 204, 20).build());
+    }
+
+    /**
+     * Adds a "Copy Tailcarft Invite" button next to the anchor button when a
+     * host session has a ready invite, so the invite can be copied to the
+     * clipboard without selecting it in the chat.
+     */
+    public static void addCopyInviteButton(Screen screen, Button anchor) {
+        String invite = state().currentInvite();
+        if (invite == null) {
+            return;
+        }
+        removeOurs(screen, "mclink.copy_invite");
+        int width = 204;
+        ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(
+                Component.translatable("mclink.copy_invite"),
+                button -> {
+                    button.setMessage(Component.translatable("mclink.copied"));
+                    new ClipboardManager().setClipboard(invite);
+                })
+            .bounds(anchor.getX() - 4 - width, anchor.getY(), width, 20).build());
     }
 
     private static void removeOurs(Screen screen, String translationKey) {

@@ -4,5 +4,7 @@
   "mclink.invite_hint": "Paste an mcl1_ Tailcarft invitation",
   "mclink.starting": "Starting secure tunnel…",
   "mclink.connect": "Connect",
+  "mclink.copy_invite": "Copy Tailcarft Invite",
+  "mclink.copied": "Copied",
   "mclink.server.label": "Connected via Tailcarft tunnel"
 }

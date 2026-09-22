@@ -14,6 +14,8 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public final class ScreenState implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger("mclink");
     private static final Duration STARTUP_TIMEOUT = Duration.ofSeconds(20);
 
     private Session session;
@@ -36,10 +39,12 @@ public final class ScreenState implements AutoCloseable {
      * restarts the helper on the new one.
      */
     public synchronized void onPublished(IntegratedServer server, int port) {
+        LOG.info("world opened to LAN on port {}", port);
         Session existing = session;
         if (existing != null) {
             if (existing.mode == SessionMode.HOST && existing.process.isAlive()
                     && existing.targetPort == port) {
+                LOG.info("host session already targets port {}; re-announcing", port);
                 announceInvite(existing.invite);
                 return;
             }
@@ -65,8 +70,22 @@ public final class ScreenState implements AutoCloseable {
             if (error == null && code != null && client.player != null) {
                 client.gui.getChat().addMessage(
                         Component.literal("Tailcarft invite: " + code));
+                LOG.info("announced the tailcarft invite in chat");
+            } else if (error != null) {
+                LOG.warn("could not announce the tailcarft invite: {}", error);
             }
         }));
+    }
+
+    /**
+     * The invite of the current host session, or null when there is no host
+     * session or its helper has not become ready yet.
+     */
+    public synchronized String currentInvite() {
+        if (session != null && session.mode == SessionMode.HOST && session.invite != null) {
+            return session.invite.getNow(null);
+        }
+        return null;
     }
 
     public synchronized CompletableFuture<Void> join(Minecraft client, Screen parent, String invitation) {
@@ -138,6 +157,7 @@ public final class ScreenState implements AutoCloseable {
             started.invite = awaitReady(started).thenApply(HelperEvent::invite);
             return started.invite;
         } catch (Exception e) {
+            LOG.warn("could not start the host session on port {}", port, e);
             stop();
             return CompletableFuture.failedFuture(e);
         }
