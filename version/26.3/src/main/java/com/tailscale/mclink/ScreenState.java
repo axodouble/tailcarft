@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.HttpUtil;
 
@@ -77,15 +78,33 @@ public final class ScreenState implements AutoCloseable {
         if (existing != null) {
             if (existing.mode == SessionMode.HOST && existing.process.isAlive()
                     && existing.targetPort == port) {
+                announceInvite(existing.invite);
                 return;
             }
             stop();
         }
-        startHosting(server, port, null, false).whenComplete((invite, error) -> {
+        CompletableFuture<String> invite = startHosting(server, port, null, false);
+        invite.whenComplete((code, error) -> {
             if (error != null && lastError == null) {
                 lastError = error.getMessage() == null ? error.toString() : error.getMessage();
             }
         });
+        announceInvite(invite);
+    }
+
+    /**
+     * Prints the invite as a client system message once the helper is ready,
+     * so the player can select and copy it from the chat, mirroring how
+     * vanilla announces that the world was opened to LAN.
+     */
+    private void announceInvite(CompletableFuture<String> invite) {
+        Minecraft client = Minecraft.getInstance();
+        invite.whenComplete((code, error) -> client.execute(() -> {
+            if (error == null && code != null && client.player != null) {
+                client.gui.hud.getChat().addClientSystemMessage(
+                        Component.literal("Tailcarft invite: " + code));
+            }
+        }));
     }
 
     /**
