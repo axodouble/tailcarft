@@ -16,6 +16,16 @@ jobs:
       - name: Check out the repository
         uses: https://data.forgejo.org/actions/checkout@v6
 
+      # Fail fast before spending build time on a mistagged release.
+      - name: Verify the tag matches the mod version
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^mod_version=//p' gradle.properties)
+          if [[ "v$version" != "${{ forgejo.ref_name }}" ]]; then
+            echo "tag ${{ forgejo.ref_name }} does not match mod_version $version" >&2
+            exit 1
+          fi
+
       # ─────────────────────────────────────────────────────────────
       # JDKs
       # ─────────────────────────────────────────────────────────────
@@ -133,15 +143,6 @@ jobs:
       # ─────────────────────────────────────────────────────────────
       # Release
       # ─────────────────────────────────────────────────────────────
-
-      - name: Verify the tag matches the mod version
-        run: |
-          set -euo pipefail
-          version=$(sed -n 's/^mod_version=//p' gradle.properties)
-          if [[ "v$version" != "${{ forgejo.ref_name }}" ]]; then
-            echo "tag ${{ forgejo.ref_name }} does not match mod_version $version" >&2
-            exit 1
-          fi
 
       - name: Stage release assets
         run: |
