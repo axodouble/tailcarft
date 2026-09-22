@@ -132,13 +132,16 @@ jobs:
             test -n "$(ls "$root/$d"/mclink-helper* 2>/dev/null)"
           done
 
+      # The build cache (under the cached ~/.gradle/caches) stores the
+      # expensive loom remap and compile outputs, so a release build that only
+      # bumped the mod version reuses them instead of redoing the work.
       - name: Build all leaf jars
         env:
           JAVA_HOME: /opt/jdk21
         run: |
           set -euxo pipefail
           JDKS=-Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
-          ./gradlew $JDKS build --console=plain
+          ./gradlew $JDKS -Dorg.gradle.caching=true build --console=plain
 
       # ─────────────────────────────────────────────────────────────
       # Release
