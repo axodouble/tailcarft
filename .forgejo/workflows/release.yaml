@@ -68,9 +68,9 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             common/src/main/resources/assets/mclink/native
-          key: ${{ forgejo.os }}-go-${{ hashFiles('helper/**', 'scripts/build-natives.sh') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('helper/**', 'scripts/build-natives.sh') }}
           restore-keys: |
-            ${{ forgejo.os }}-go-
+            ${{ runner.os }}-go-
 
       - name: Build helper natives for all platforms
         if: steps.go-cache.outputs.cache-hit != 'true'
