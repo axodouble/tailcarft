@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "adr": {
+      "source": "axodouble/skills",
+      "sourceType": "github",
+      "skillPath": "skills/adr/SKILL.md",
+      "computedHash": "ceb7e5e321a972c689eb02a57d8a215734abe2c39c89651a42b85b6babadb3cf"
+    },
+    "adr-review": {
+      "source": "axodouble/skills",
+      "sourceType": "github",
+      "skillPath": "skills/adr-review/SKILL.md",
+      "computedHash": "874c6eaf2245f2eb9ecdc32259d59c61f5fceac9a003e937ff2c4d98ff153f26"
+    },
+    "decision-records": {
+      "source": "axodouble/skills",
+      "sourceType": "github",
+      "skillPath": "skills/decision-records/SKILL.md",
+      "computedHash": "6c7045b8e12cbb85f1ccc86d3b3ba8db8a23fc240401b8e45bc27208a7388873"
+    },
+    "fdr": {
+      "source": "axodouble/skills",
+      "sourceType": "github",
+      "skillPath": "skills/fdr/SKILL.md",
+      "computedHash": "8f9982a7b9c9844498fae7c13c7028ce35d189450e965193bf37bf9bcd8a0729"
+    },
+    "fdr-review": {
+      "source": "axodouble/skills",
+      "sourceType": "github",
+      "skillPath": "skills/fdr-review/SKILL.md",
+      "computedHash": "df3dd5c87ac7ec4b41336fc8d7187f410ac5004c5685643a92102fcf95b7d39a"
+    }
+  }
+}
