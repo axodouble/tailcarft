@@ -19,6 +19,13 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LookupSwitchInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -27,6 +34,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +72,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *    the target's parameters plus a trailing callback-info parameter, so a
  *    bare {@code ()V} handler is rejected with an
  *    {@code InvalidInjectionException} at apply time.
+ *
+ * <p>5. A plain {@code @At("TAIL")} injection whose target method's last
+ *    return instruction in bytecode order is not where the method's normal
+ *    control flow actually ends ({@code IntegratedServer.publishServer},
+ *    whose success return precedes both the exception handler's
+ *    {@code return false} in the vanilla bytecode and the guard clause's
+ *    {@code return false} in the NeoForge-patched bytecode). Mixin resolves
+ *    TAIL to that last return, so the injection silently never fires when
+ *    the method completes its work: no build-time error, no runtime error,
+ *    just a hook that is dead.
  *
  * <p>These tests run in the {@code test} task of every leaf. They read the
  * mixin classes and their named Minecraft targets straight off the test
@@ -255,6 +273,175 @@ class MixinRegressionTest {
                 + "the injection at apply time):\n  " + String.join("\n  ", problems));
     }
 
+    @Test
+    void tailInjectionsStayOnTheNormalControlFlow() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                MixinInfo info = parseMixin(readClass(pkg + "." + mixin));
+                for (InjectionInfo inj : info.injections) {
+                    if (inj.atHasTarget || !"TAIL".equals(inj.atValue)) {
+                        continue;
+                    }
+                    for (String target : info.targets) {
+                        String descriptor = targetMethodDescriptor(target, inj.targetSpec);
+                        if (descriptor == null) {
+                            continue;
+                        }
+                        String defect = tailDefect(target, methodName(inj.targetSpec), descriptor);
+                        if (defect != null) {
+                            problems.add(pkg + "." + mixin + " -> " + inj.callbackName
+                                + " injects TAIL into " + target + "." + methodName(inj.targetSpec)
+                                + ": " + defect);
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin TAIL injections bind to a return instruction the method's "
+                + "normal control flow does not end on (an early-exit or "
+                + "exception-handler return emitted after the body's own "
+                + "return):\n  " + String.join("\n  ", problems));
+    }
+
+    /**
+     * A reason a {@code @At("TAIL")} into the named method would bind to the
+     * wrong exit, or {@code null} when TAIL is safe there.
+     *
+     * <p>Mixin resolves TAIL to the last return instruction in bytecode
+     * order. Compilers routinely emit an exception handler's return or a
+     * guard clause's return after the main body's return, in which case the
+     * injection point silently moves off the path the body actually ends on
+     * and never fires when the method completes its work. This finds the
+     * return the longest normal (non-exception) path from the method entry
+     * ends on and reports when it is not the last return in bytecode order.
+     */
+    private static String tailDefect(String target, String methodName, String descriptor) {
+        byte[] bytes = tryReadClass(target);
+        if (bytes == null) {
+            return null;
+        }
+        MethodNode node = new MethodNode(Opcodes.ASM9);
+        new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc,
+                                             String signature, String[] exceptions) {
+                if (name.equals(methodName) && desc.equals(descriptor)) {
+                    return node;
+                }
+                return null;
+            }
+        }, 0);
+        if (node.instructions == null) {
+            return null;
+        }
+        List<AbstractInsnNode> insns = new ArrayList<>();
+        for (AbstractInsnNode n : node.instructions) {
+            insns.add(n);
+        }
+        int size = insns.size();
+        InsnNode lastReturn = null;
+        for (AbstractInsnNode n : insns) {
+            if (n instanceof InsnNode && isReturn(((InsnNode) n).getOpcode())) {
+                lastReturn = (InsnNode) n;
+            }
+        }
+        if (lastReturn == null) {
+            return null;
+        }
+        int[] dist = longestNormalPathLengths(insns);
+        InsnNode bodyReturn = null;
+        int best = -1;
+        for (int i = 0; i < size; i++) {
+            AbstractInsnNode n = insns.get(i);
+            if (n instanceof InsnNode && isReturn(((InsnNode) n).getOpcode())
+                    && dist[i] > best) {
+                best = dist[i];
+                bodyReturn = (InsnNode) n;
+            }
+        }
+        if (bodyReturn == null || bodyReturn == lastReturn) {
+            return null;
+        }
+        return "the method's normal control flow ends on a different return "
+            + "instruction than the last one in bytecode order, so TAIL would "
+            + "bind to an early-exit or exception-handler return and never "
+            + "fire when the method completes its work";
+    }
+
+    /**
+     * The longest number of instructions a normal (non-exception) path from
+     * the method entry can reach at each list index; -1 where the normal
+     * control flow never gets there.
+     */
+    private static int[] longestNormalPathLengths(List<AbstractInsnNode> insns) {
+        int size = insns.size();
+        int[] dist = new int[size];
+        Arrays.fill(dist, -1);
+        dist[0] = 0;
+        for (int pass = 0; pass < size; pass++) {
+            boolean changed = false;
+            for (int i = 0; i < size; i++) {
+                if (dist[i] < 0) {
+                    continue;
+                }
+                for (int next : normalSuccessors(insns, i)) {
+                    if (next >= 0 && next < size && dist[next] < dist[i] + 1) {
+                        dist[next] = dist[i] + 1;
+                        changed = true;
+                    }
+                }
+            }
+            if (!changed) {
+                break;
+            }
+        }
+        return dist;
+    }
+
+    /**
+     * The indexes of the instructions the normal (non-exception) control flow
+     * can fall into after {@code insns[index]}.
+     */
+    private static List<Integer> normalSuccessors(List<AbstractInsnNode> insns, int index) {
+        AbstractInsnNode insn = insns.get(index);
+        int op = insn instanceof InsnNode ? ((InsnNode) insn).getOpcode() : -1;
+        List<Integer> out = new ArrayList<>(2);
+        if (op >= Opcodes.IRETURN && op <= Opcodes.ARETURN || op == Opcodes.RETURN
+                || op == Opcodes.ATHROW) {
+            return out;
+        }
+        if (insn instanceof JumpInsnNode) {
+            out.add(insns.indexOf(((JumpInsnNode) insn).label));
+            if (op != Opcodes.GOTO) {
+                out.add(index + 1);
+            }
+        } else if (insn instanceof TableSwitchInsnNode) {
+            TableSwitchInsnNode sw = (TableSwitchInsnNode) insn;
+            out.add(insns.indexOf(sw.dflt));
+            for (LabelNode l : sw.labels) {
+                out.add(insns.indexOf(l));
+            }
+            out.add(index + 1);
+        } else if (insn instanceof LookupSwitchInsnNode) {
+            LookupSwitchInsnNode sw = (LookupSwitchInsnNode) insn;
+            out.add(insns.indexOf(sw.dflt));
+            for (LabelNode l : sw.labels) {
+                out.add(insns.indexOf(l));
+            }
+            out.add(index + 1);
+        } else {
+            out.add(index + 1);
+        }
+        return out;
+    }
+
+    private static boolean isReturn(int op) {
+        return op == Opcodes.RETURN || (op >= Opcodes.IRETURN && op <= Opcodes.ARETURN);
+    }
+
     private static final class MixinInfo {
         final Set<String> targets = new LinkedHashSet<>();
         final Set<String> injectionMethods = new LinkedHashSet<>();
@@ -273,6 +460,20 @@ class MixinRegressionTest {
         boolean callbackStatic;
         String targetSpec;
         boolean atHasTarget;
+        String atValue;
+    }
+
+    private static AnnotationVisitor atElementVisitor(InjectionInfo inj) {
+        return new AnnotationVisitor(Opcodes.ASM9) {
+            @Override
+            public void visit(String n, Object value) {
+                if ("target".equals(n)) {
+                    inj.atHasTarget = true;
+                } else if ("value".equals(n)) {
+                    inj.atValue = (String) value;
+                }
+            }
+        };
     }
 
     private static MixinInfo parseMixin(byte[] bytes) {
@@ -335,20 +536,24 @@ class MixinRegressionTest {
                                         }
                                     };
                                 }
+                                // @Inject.at is an At[]; each array element is a
+                                // nested annotation, visited here.
+                                if ("at".equals(name)) {
+                                    return new AnnotationVisitor(Opcodes.ASM9) {
+                                        @Override
+                                        public AnnotationVisitor visitAnnotation(
+                                                String n, String atDesc) {
+                                            return atElementVisitor(inj);
+                                        }
+                                    };
+                                }
                                 return null;
                             }
 
                             @Override
                             public AnnotationVisitor visitAnnotation(String name, String atDesc) {
                                 if ("at".equals(name)) {
-                                    return new AnnotationVisitor(Opcodes.ASM9) {
-                                        @Override
-                                        public void visit(String n, Object value) {
-                                            if ("target".equals(n)) {
-                                                inj.atHasTarget = true;
-                                            }
-                                        }
-                                    };
+                                    return atElementVisitor(inj);
                                 }
                                 return null;
                             }
@@ -548,6 +753,25 @@ class MixinRegressionTest {
             return null;
         }
         return Type.getArgumentTypes(descriptors.iterator().next()).length;
+    }
+
+    /**
+     * The descriptor of the target method named by {@code targetSpec}: taken
+     * directly from the spec when it carries one, or resolved against the
+     * target's hierarchy when the spec is a bare name with a single overload,
+     * or {@code null} when the method cannot be resolved.
+     */
+    private static String targetMethodDescriptor(String target, String targetSpec) {
+        if (targetSpec == null) {
+            return null;
+        }
+        String spec = targetSpec.trim();
+        int paren = spec.indexOf('(');
+        if (paren >= 0) {
+            return spec.substring(paren);
+        }
+        Set<String> descriptors = methodDescriptorsOfHierarchy(target, spec);
+        return descriptors.size() == 1 ? descriptors.iterator().next() : null;
     }
 
     private static Set<String> methodDescriptorsOfHierarchy(String dotName, String methodName) {

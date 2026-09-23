@@ -18,7 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(IntegratedServer.class)
 public abstract class IntegratedServerMixin {
-    @Inject(method = "publishServer(Lnet/minecraft/server/MinecraftServer$MultiplayerScope;I)Z", at = @At("TAIL"))
+    // @At("RETURN"), not TAIL: 26.3's success return precedes the
+    // IOException handler's return in bytecode order, so TAIL would only
+    // fire on the failure path.
+    @Inject(method = "publishServer(Lnet/minecraft/server/MinecraftServer$MultiplayerScope;I)Z", at = @At("RETURN"))
     private void mclink$onPublished(MinecraftServer.MultiplayerScope scope, int port,
                                     CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValueI() == 0) {
