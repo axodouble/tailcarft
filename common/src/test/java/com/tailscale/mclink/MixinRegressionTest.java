@@ -57,6 +57,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *    {@code self} on a no-arg target is rejected with an
  *    {@code InvalidInjectionException} at apply time.
  *
+ * <p>4. An {@code @Inject} callback that does not end with a
+ *    {@code CallbackInfo} or {@code CallbackInfoReturnable} parameter
+ *    (issue #26, {@code Minecraft.tick} injected with a no-argument
+ *    {@code mclink$onTick} handler). Mixin derives the expected descriptor as
+ *    the target's parameters plus a trailing callback-info parameter, so a
+ *    bare {@code ()V} handler is rejected with an
+ *    {@code InvalidInjectionException} at apply time.
+ *
  * <p>These tests run in the {@code test} task of every leaf. They read the
  * mixin classes and their named Minecraft targets straight off the test
  * classpath with ASM, so no Minecraft runtime is required.
@@ -69,6 +77,8 @@ class MixinRegressionTest {
     private static final String[] CONFIG_NAMES = {
         "mclink.mixins.json", "mclink.neoforge.mixins.json", "mclink.forge.mixins.json"
     };
+    private static final String INJECT_ANNOTATION =
+        "Lorg/spongepowered/asm/mixin/injection/Inject;";
     private static final Set<String> INJECTION_ANNOTATIONS = Set.of(
         "Lorg/spongepowered/asm/mixin/injection/Inject;",
         "Lorg/spongepowered/asm/mixin/injection/Redirect;",
@@ -219,6 +229,32 @@ class MixinRegressionTest {
                 + "rejected at apply time):\n  " + String.join("\n  ", problems));
     }
 
+    @Test
+    void injectCallbacksEndWithCallbackInfo() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                MixinInfo info = parseMixin(readClass(pkg + "." + mixin));
+                for (InjectionInfo inj : info.injections) {
+                    if (!INJECT_ANNOTATION.equals(inj.annotation)) {
+                        continue;
+                    }
+                    if (!endsWithCallbackInfo(inj.callbackDesc)) {
+                        problems.add(pkg + "." + mixin + " -> " + inj.callbackName
+                            + " (" + inj.callbackDesc + ") is an @Inject callback that "
+                            + "does not end with CallbackInfo or CallbackInfoReturnable; "
+                            + "Mixin rejects the injection at apply time");
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin @Inject callbacks do not end with a CallbackInfo or "
+                + "CallbackInfoReturnable parameter (Mixin requires one and rejects "
+                + "the injection at apply time):\n  " + String.join("\n  ", problems));
+    }
+
     private static final class MixinInfo {
         final Set<String> targets = new LinkedHashSet<>();
         final Set<String> injectionMethods = new LinkedHashSet<>();
@@ -231,6 +267,7 @@ class MixinRegressionTest {
     }
 
     private static final class InjectionInfo {
+        String annotation;
         String callbackName;
         String callbackDesc;
         boolean callbackStatic;
@@ -281,6 +318,7 @@ class MixinRegressionTest {
                             return null;
                         }
                         InjectionInfo inj = new InjectionInfo();
+                        inj.annotation = desc;
                         inj.callbackName = name;
                         inj.callbackDesc = descriptor;
                         inj.callbackStatic = isStatic;
@@ -454,7 +492,21 @@ class MixinRegressionTest {
             return 0;
         }
         String last = args[n - 1].getDescriptor();
-        return (CALLBACK_INFO.equals(last) || CALLBACK_INFO_RETURNABLE.equals(last)) ? n - 1 : n;
+        return endsWithCallbackInfo(descriptor) ? n - 1 : n;
+    }
+
+    /**
+     * Whether the callback method's final parameter is a
+     * {@code CallbackInfo} or {@code CallbackInfoReturnable}. An
+     * {@code @Inject} callback without one is rejected by Mixin at apply time.
+     */
+    private static boolean endsWithCallbackInfo(String descriptor) {
+        Type[] args = Type.getArgumentTypes(descriptor);
+        if (args.length == 0) {
+            return false;
+        }
+        String last = args[args.length - 1].getDescriptor();
+        return CALLBACK_INFO.equals(last) || CALLBACK_INFO_RETURNABLE.equals(last);
     }
 
     /**
