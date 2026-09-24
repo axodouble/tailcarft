@@ -6,7 +6,7 @@
 package com.tailscale.mclink.mixin;
 
 import com.tailscale.mclink.ClientMod;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.WorldOptionsScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,10 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(WorldOptionsScreen.class)
 public abstract class WorldOptionsScreenMixin {
     @Shadow
-    private Button applyChanges;
+    private EditBox portEdit;
 
     @Inject(method = "init()V", at = @At("TAIL"))
     private void mclink$addCopyInviteButton(CallbackInfo ci) {
-        ClientMod.addCopyInviteButton((Screen) (Object) this, this.applyChanges);
+        ClientMod.addCopyInviteButton((Screen) (Object) this, this.portEdit);
     }
 }

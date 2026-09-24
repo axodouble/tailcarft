@@ -14,6 +14,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +70,8 @@ public final class ScreenState implements AutoCloseable {
         invite.whenComplete((code, error) -> client.execute(() -> {
             if (error == null && code != null && client.player != null) {
                 client.gui.getChat().addMessage(
-                        Component.literal("Tailcarft invite: " + code));
+                        Component.literal("Tailcarft invite: ")
+                                .append(ComponentUtils.copyOnClickText(code)));
                 LOG.info("announced the tailcarft invite in chat");
             } else if (error != null) {
                 LOG.warn("could not announce the tailcarft invite: {}", error);
