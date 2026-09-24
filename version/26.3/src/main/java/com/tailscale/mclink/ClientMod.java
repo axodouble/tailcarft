@@ -10,8 +10,8 @@ package com.tailscale.mclink;
 import com.mojang.blaze3d.platform.ClipboardManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.network.chat.Component;
@@ -73,33 +73,25 @@ public final class ClientMod {
     }
 
     /**
-     * Adds a "Copy Tailcarft Invite" button in the multiplayer options, right
-     * of the port field (the same row as the LAN toggle), when a host session
-     * has a ready invite, so the invite can be copied to the clipboard without
-     * selecting it in the chat.
+     * Adds a "Copy Tailcarft Invite" button as its own section in the
+     * scrollable world-options content, right under the multiplayer options,
+     * when a host session has a ready invite. Adding it to the content (rather
+     * than as a top-level screen widget) keeps it with the LAN section and
+     * makes it scroll with the rest of the options.
      */
-    public static void addCopyInviteButton(Screen screen, EditBox anchor) {
+    public static void addCopyInviteButton(Screen screen, LinearLayout content) {
         String invite = state().currentInvite();
-        if (invite == null || anchor == null) {
+        if (invite == null) {
             return;
         }
         removeOurs(screen, "mclink.copy_invite");
-        int width = 204;
-        int x = anchor.getX() + anchor.getWidth() + 8;
-        int maxX = screen.width - width - 4;
-        if (x > maxX) {
-            x = maxX;
-        }
-        if (x < 4) {
-            x = 4;
-        }
-        ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(
+        content.addChild(Button.builder(
                 Component.translatable("mclink.copy_invite"),
                 button -> {
                     button.setMessage(Component.translatable("mclink.copied"));
                     new ClipboardManager().setClipboard(invite);
                 })
-            .bounds(x, anchor.getY(), width, 20).build());
+            .bounds(0, 0, 308, 20).build());
     }
 
     private static void removeOurs(Screen screen, String translationKey) {
