@@ -24,6 +24,7 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LookupSwitchInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TableSwitchInsnNode;
 
@@ -83,6 +84,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *    the method completes its work: no build-time error, no runtime error,
  *    just a hook that is dead.
  *
+ * <p>6. An {@code @Inject} callback that reads the target method's return
+ *    value with a {@code CallbackInfoReturnable} getter whose type does not
+ *    match the target's actual return type ({@code IntegratedServerMixin},
+ *    which injected into {@code IntegratedServer.publishServer}—a
+ *    {@code boolean}-returning method—yet called {@code getReturnValueI()},
+ *    the {@code int} getter). Mixin compiles the call fine, but at runtime
+ *    the boxed {@code Boolean} return cannot be cast to {@code Integer}, so
+ *    the hook throws a {@code ClassCastException} the first time the target
+ *    returns: the open-to-LAN flow dies and the invite is never announced.
+ *
  * <p>These tests run in the {@code test} task of every leaf. They read the
  * mixin classes and their named Minecraft targets straight off the test
  * classpath with ASM, so no Minecraft runtime is required.
@@ -109,6 +120,8 @@ class MixinRegressionTest {
         "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfo;";
     private static final String CALLBACK_INFO_RETURNABLE =
         "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;";
+    private static final String CALLBACK_INFO_RETURNABLE_INTERNAL =
+        "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable";
 
     @Test
     void mixinPackageContainsOnlyMixinClasses() throws IOException {
@@ -306,6 +319,52 @@ class MixinRegressionTest {
                 + "return):\n  " + String.join("\n  ", problems));
     }
 
+    @Test
+    void returnValueGettersMatchTargetReturnType() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (JsonObject config : mixinConfigs()) {
+            String pkg = config.get("package").getAsString();
+            for (String mixin : declaredMixins(config)) {
+                String className = pkg + "." + mixin;
+                byte[] bytes = readClass(className);
+                MixinInfo info = parseMixin(bytes);
+                for (InjectionInfo inj : info.injections) {
+                    if (!callbackEndsWithCallbackInfoReturnable(inj.callbackDesc)) {
+                        continue;
+                    }
+                    List<String> getters =
+                        returnValueGettersIn(bytes, inj.callbackName, inj.callbackDesc);
+                    if (getters.isEmpty()) {
+                        continue;
+                    }
+                    for (String target : info.targets) {
+                        String descriptor = targetMethodDescriptor(target, inj.targetSpec);
+                        if (descriptor == null) {
+                            continue;
+                        }
+                        String retType = returnTypeOf(descriptor);
+                        for (String getter : getters) {
+                            String expected = getterToReturnType(getter);
+                            if (!expected.equals(retType)) {
+                                problems.add(className + " -> " + inj.callbackName
+                                    + " (" + inj.callbackDesc + ") calls " + getter
+                                    + "(), which reads a " + typeName(expected)
+                                    + " return, but " + target + "."
+                                    + methodName(inj.targetSpec) + " returns "
+                                    + typeName(retType) + "; Mixin throws a "
+                                    + "ClassCastException at runtime");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(),
+            "Mixin @Inject callbacks read the return value with a getter whose type "
+                + "does not match the target method's return type (Mixin throws a "
+                + "ClassCastException at runtime):\n  " + String.join("\n  ", problems));
+    }
+
     /**
      * A reason a {@code @At("TAIL")} into the named method would bind to the
      * wrong exit, or {@code null} when TAIL is safe there.
@@ -440,6 +499,97 @@ class MixinRegressionTest {
 
     private static boolean isReturn(int op) {
         return op == Opcodes.RETURN || (op >= Opcodes.IRETURN && op <= Opcodes.ARETURN);
+    }
+
+    /**
+     * Whether the callback's final parameter is specifically a
+     * {@code CallbackInfoReturnable} (a plain {@code CallbackInfo} carries no
+     * return value, so there is nothing to read).
+     */
+    private static boolean callbackEndsWithCallbackInfoReturnable(String descriptor) {
+        Type[] args = Type.getArgumentTypes(descriptor);
+        if (args.length == 0) {
+            return false;
+        }
+        return CALLBACK_INFO_RETURNABLE.equals(args[args.length - 1].getDescriptor());
+    }
+
+    /**
+     * The return-type descriptor of a full method descriptor: the part after
+     * the last {@code )}.
+     */
+    private static String returnTypeOf(String descriptor) {
+        int paren = descriptor.lastIndexOf(')');
+        return paren >= 0 ? descriptor.substring(paren + 1) : descriptor;
+    }
+
+    /**
+     * The target return-type descriptor a {@code getReturnValueX()} getter
+     * expects, or {@code null} for a getter this test does not model. The
+     * getter suffix and the JVM descriptor differ for long ({@code L} vs
+     * {@code J}).
+     */
+    private static String getterToReturnType(String getterName) {
+        switch (getterName) {
+            case "getReturnValueI": return "I";
+            case "getReturnValueL": return "J";
+            case "getReturnValueZ": return "Z";
+            case "getReturnValueF": return "F";
+            case "getReturnValueD": return "D";
+            default: return null;
+        }
+    }
+
+    private static boolean isReturnValueGetter(String name) {
+        return name.equals("getReturnValueI") || name.equals("getReturnValueL")
+            || name.equals("getReturnValueZ") || name.equals("getReturnValueF")
+            || name.equals("getReturnValueD");
+    }
+
+    private static String typeName(String descriptorChar) {
+        switch (descriptorChar) {
+            case "I": return "int";
+            case "J": return "long";
+            case "Z": return "boolean";
+            case "F": return "float";
+            case "D": return "double";
+            default: return descriptorChar;
+        }
+    }
+
+    /**
+     * The {@code getReturnValueX()} getters the named callback method's body
+     * invokes on its {@code CallbackInfoReturnable}; empty when it reads none.
+     * Matching on the static owner means a getter reached through a local
+     * variable of that type is caught as well as one on the parameter.
+     */
+    private static List<String> returnValueGettersIn(byte[] mixinBytes, String callbackName,
+                                                     String callbackDesc) {
+        MethodNode[] holder = new MethodNode[1];
+        new ClassReader(mixinBytes).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc,
+                                             String signature, String[] exceptions) {
+                if (name.equals(callbackName) && desc.equals(callbackDesc)) {
+                    holder[0] = new MethodNode(Opcodes.ASM9);
+                    return holder[0];
+                }
+                return null;
+            }
+        }, 0);
+        List<String> getters = new ArrayList<>();
+        if (holder[0] != null) {
+            for (AbstractInsnNode insn : holder[0].instructions) {
+                if (insn instanceof MethodInsnNode) {
+                    MethodInsnNode call = (MethodInsnNode) insn;
+                    if (CALLBACK_INFO_RETURNABLE_INTERNAL.equals(call.owner)
+                            && isReturnValueGetter(call.name)) {
+                        getters.add(call.name);
+                    }
+                }
+            }
+        }
+        return getters;
     }
 
     private static final class MixinInfo {

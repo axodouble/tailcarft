@@ -24,7 +24,7 @@ public abstract class IntegratedServerMixin {
     @Inject(method = "publishServer(Lnet/minecraft/server/MinecraftServer$MultiplayerScope;I)Z", at = @At("RETURN"))
     private void mclink$onPublished(MinecraftServer.MultiplayerScope scope, int port,
                                     CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueI() == 0) {
+        if (!cir.getReturnValueZ()) {
             return;
         }
         ScreenState state = ClientMod.state();
@@ -35,7 +35,7 @@ public abstract class IntegratedServerMixin {
 
     @Inject(method = "unpublishServer()Z", at = @At("TAIL"))
     private void mclink$onUnpublished(CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueI() == 0) {
+        if (!cir.getReturnValueZ()) {
             return;
         }
         ScreenState state = ClientMod.state();

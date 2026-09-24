@@ -24,7 +24,7 @@ public abstract class IntegratedServerMixin {
     @Inject(method = "publishServer(Lnet/minecraft/world/level/GameType;ZI)Z", at = @At("RETURN"))
     private void mclink$onPublished(GameType gameMode, boolean allowCommands, int port,
                                     CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueI() == 0) {
+        if (!cir.getReturnValueZ()) {
             return;
         }
         ScreenState state = ClientMod.state();
