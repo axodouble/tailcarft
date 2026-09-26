@@ -104,7 +104,8 @@ class MixinRegressionTest {
     private static final String MIXIN_ANNOTATION = "Lorg/spongepowered/asm/mixin/Mixin;";
     private static final String SHADOW_ANNOTATION = "Lorg/spongepowered/asm/mixin/Shadow;";
     private static final String[] CONFIG_NAMES = {
-        "mclink.mixins.json", "mclink.neoforge.mixins.json", "mclink.forge.mixins.json"
+        "mclink.mixins.json", "mclink.neoforge.mixins.json", "mclink.forge.mixins.json",
+        "mclink.quilt.mixins.json", "mclink.quilt.server.mixins.json"
     };
     private static final String INJECT_ANNOTATION =
         "Lorg/spongepowered/asm/mixin/injection/Inject;";

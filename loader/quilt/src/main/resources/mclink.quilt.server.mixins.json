@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "com.tailscale.mclink.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "ServerLifecycleMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

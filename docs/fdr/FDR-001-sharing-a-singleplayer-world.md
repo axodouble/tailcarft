@@ -1,7 +1,7 @@
 # FDR-001: Sharing a singleplayer world
 
 **Status:** Active
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-25
 
 ## Overview
 
@@ -103,7 +103,20 @@ of an active share and to the game itself, which is the appropriate trust
 model for a feature a player turns on and off casually.
 **Tradeoff:** Reconnects after a share is stopped require a fresh invitation.
 
+### 6. The supported loader/version matrix follows upstream availability
+
+**Decision:** A jar is built for a (loader, Minecraft version) combination
+only when that loader publishes for that version. At the time of writing the
+matrix is Fabric (1.20.1, 1.21.1, 26.3), NeoForge (1.21.1, 26.3), Forge
+(1.20.1, 1.21.1, 26.3), and Quilt (1.20.1, 1.21.1); LiteLoader and Quilt for
+26.3 are unsupported because no loader exists for them. See ADR-003.
+**Why:** Shipping a jar for a loader/version pair with no upstream loader
+would mean bundling an uncertified loader, which is a support burden without
+a user benefit.
+**Tradeoff:** Users on a loader that has not kept up with a Minecraft line
+must switch loaders or wait.
+
 ## Related
 
-- **ADRs:** ADR-001, ADR-002
+- **ADRs:** ADR-001, ADR-002, ADR-003
 - **FDRs:** —

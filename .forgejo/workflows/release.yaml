@@ -153,7 +153,7 @@ jobs:
           version=$(sed -n 's/^mod_version=//p' gradle.properties)
           base=tailcarft
           mkdir -p dist/release
-          for loader in fabric neoforge forge; do
+          for loader in fabric neoforge forge quilt; do
             for mc in $(sed -n "s/^targets.${loader}=//p" gradle.properties | tr ',' ' '); do
               cp "${loader}-${mc}/build/libs/${base}-${version}-${loader}-${mc}.jar" dist/release/
             done

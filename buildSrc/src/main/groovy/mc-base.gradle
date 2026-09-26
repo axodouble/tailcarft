@@ -73,10 +73,11 @@ processResources {
             java_version     : javaVersion.toString(),
             loader_version   : loader == 'fabric' ? rootProject.findProperty('fabricloader')
                     : loader == 'neoforge' ? rootProject.findProperty("neoforge.${mc}")
-                    : rootProject.findProperty("forge.${mc}"),
+                    : loader == 'forge' ? rootProject.findProperty("forge.${mc}")
+                    : rootProject.findProperty("quiltloader.${mc}"),
     ]
     inputs.properties(props)
-    filesMatching(['fabric.mod.json', 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml']) {
+    filesMatching(['fabric.mod.json', 'quilt.mod.json', 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml']) {
         expand(props)
     }
 }

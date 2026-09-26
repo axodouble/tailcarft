@@ -1,0 +1,29 @@
+plugins {
+    id 'org.quiltmc.loom'
+}
+
+def mc = project.name.substring(project.name.indexOf('-') + 1)
+
+repositories {
+    maven { url = uri("https://maven.quiltmc.org/repository/release/") }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mc}"
+    mappings loom.officialMojangMappings()
+    modImplementation "org.quiltmc:quilt-loader:${rootProject.findProperty("quiltloader.${mc}")}"
+
+    // Quilt Loom does not put the Mixin API on the compile classpath (Fabric
+    // Loom does). quilt-loader supplies the Mixin engine at runtime, so this is
+    // compile/test-only and is not bundled into the remapped jar.
+    def spongemixin = "net.fabricmc:sponge-mixin:${rootProject.findProperty('spongemixin')}"
+    compileOnly spongemixin
+    testImplementation spongemixin
+}
+
+// Make the named Minecraft classes and the asm/gson they pull in available to
+// the shared mixin regression tests, which run in the test task of every leaf.
+configurations {
+    testCompileClasspath.extendsFrom runtimeClasspath
+    testRuntimeClasspath.extendsFrom runtimeClasspath
+}
