@@ -118,5 +118,5 @@ must switch loaders or wait.
 
 ## Related
 
-- **ADRs:** ADR-001, ADR-002, ADR-003
+- **ADRs:** ADR-001, ADR-002, ADR-003, ADR-004
 - **FDRs:** —

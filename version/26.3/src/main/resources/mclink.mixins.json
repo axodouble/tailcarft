@@ -9,7 +9,8 @@
     "ScreenAccessorMixin",
     "IntegratedServerMixin",
     "MinecraftTickMixin",
-    "WorldOptionsScreenMixin"
+    "WorldOptionsScreenMixin",
+    "AccessibilityOnboardingScreenMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

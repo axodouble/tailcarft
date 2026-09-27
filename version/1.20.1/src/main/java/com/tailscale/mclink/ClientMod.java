@@ -37,6 +37,10 @@ public final class ClientMod {
     }
 
     public static void onTick(Minecraft client) {
+        if (System.getenv("TMC_GUI_SMOKE") != null) {
+            smokeTick(client);
+            return;
+        }
         state.tick(client);
         String error = state.takeError();
         if (error != null) {
@@ -108,5 +112,52 @@ public final class ClientMod {
                 .map(Button.class::cast)
                 .filter(button -> button.getMessage().getString().equals(label))
                 .findFirst().orElse(null);
+    }
+
+    // GUI smoke hook: when TMC_GUI_SMOKE is set, the client waits for the
+    // startup resource load to finish (the game settles on a stable screen),
+    // opens the Multiplayer screen, waits for it to render, then prints a
+    // verdict line (TMC_GUI_SMOKE joinButton=true|false) and stays alive so
+    // scripts/gui-smoke.sh can capture the real X11 window. Inert in normal
+    // play. See ADR-004.
+    private static int smokePhase;
+    private static int smokeFrame;
+    private static Class<?> smokeSettledScreen;
+
+    private static void smokeTick(Minecraft client) {
+        // Phase 0: wait until the game settles on a stable, non-null screen,
+        // which means the startup resource load is done and the render
+        // pipeline is in normal mode. A screen opened now will actually
+        // render. (Waiting for a specific class such as TitleScreen is
+        // fragile: the game may instead settle on an onboarding screen.)
+        if (smokePhase == 0) {
+            Class<?> now = client.screen == null ? null : client.screen.getClass();
+            if (now != null && now == smokeSettledScreen) {
+                smokeFrame++;
+            } else {
+                smokeSettledScreen = now;
+                smokeFrame = 0;
+            }
+            if (smokeFrame >= 20) {
+                client.setScreen(new JoinMultiplayerScreen(client.screen));
+                smokePhase = 1;
+                smokeFrame = 0;
+            }
+            return;
+        }
+        // Phase 1: let the multiplayer screen render, then report the verdict.
+        // The client stays alive on this screen afterwards (no in-game
+        // screenshot, no exit) so the host can capture the real X11 window.
+        if (smokePhase == 1) {
+            if (++smokeFrame >= 60) {
+                Screen screen = client.screen;
+                boolean hasJoin = findButton(screen, "mclink.join") != null;
+                System.out.println("TMC_GUI_SMOKE joinButton=" + hasJoin
+                        + " screen=" + (screen == null ? "null" : screen.getClass().getSimpleName()));
+                smokePhase = 2;
+            }
+            return;
+        }
+        // Phase 2: keep the client alive on the multiplayer screen.
     }
 }

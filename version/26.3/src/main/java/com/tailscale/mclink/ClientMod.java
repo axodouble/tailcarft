@@ -14,6 +14,7 @@ import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
 
 public final class ClientMod {
@@ -39,6 +40,10 @@ public final class ClientMod {
     }
 
     public static void onTick(Minecraft client) {
+        if (System.getenv("TMC_GUI_SMOKE") != null) {
+            smokeTick(client);
+            return;
+        }
         state.tick(client);
         String error = state.takeError();
         if (error != null) {
@@ -49,6 +54,10 @@ public final class ClientMod {
 
     public static void onClientStopping(Minecraft client) {
         state.close();
+    }
+
+    public static boolean isGuiSmokeTest() {
+        return System.getenv("TMC_GUI_SMOKE") != null;
     }
 
     private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {
@@ -103,6 +112,83 @@ public final class ClientMod {
 
     private static Button findButton(Screen screen, String translationKey) {
         String label = Component.translatable(translationKey).getString();
+        return screen.children().stream()
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .filter(button -> button.getMessage().getString().equals(label))
+                .findFirst().orElse(null);
+    }
+
+    // GUI smoke hook: when TMC_GUI_SMOKE is set, the client waits for the
+    // startup resource load to finish (the game settles on a stable screen),
+    // opens the Multiplayer screen, waits for it to render, then prints a
+    // verdict line (TMC_GUI_SMOKE joinButton=true|false) and stays alive so
+    // scripts/gui-smoke.sh can capture the real X11 window. Inert in normal
+    // play. See ADR-004.
+    private static int smokePhase;
+    private static int smokeFrame;
+
+    // A minimal "no modifier keys" input, used to click the title screen's
+    // Multiplayer button programmatically during the GUI smoke test.
+    private static final InputWithModifiers NO_MODS = new InputWithModifiers() {
+        @Override
+        public int input() {
+            return 0;
+        }
+
+        @Override
+        public int modifiers() {
+            return 0;
+        }
+    };
+
+    private static void smokeTick(Minecraft client) {
+        Screen cur = client.gui.screen();
+        // Phase 0: wait until the title screen is ready (its "Multiplayer"
+        // button exists), then click it to open the multiplayer safety screen.
+        // (The first-launch accessibility onboarding screen is dismissed by
+        // AccessibilityOnboardingScreenMixin before the title screen appears.)
+        if (smokePhase == 0) {
+            Button multiplayer = cur == null ? null : findButton(cur, "menu.multiplayer");
+            if (multiplayer != null) {
+                multiplayer.onPress(NO_MODS);
+                smokePhase = 1;
+                smokeFrame = 0;
+            }
+            return;
+        }
+        // Phase 1: wait until the multiplayer safety screen is ready (its
+        // "Proceed" button exists), then click it to open the multiplayer
+        // server-list screen (JoinMultiplayerScreen).
+        if (smokePhase == 1) {
+            Button proceed = cur == null ? null : findButtonByLabel(cur, "Proceed");
+            if (proceed != null) {
+                proceed.onPress(NO_MODS);
+                smokePhase = 2;
+                smokeFrame = 0;
+            }
+            return;
+        }
+        // Phase 2: let the multiplayer screen render, then report the verdict.
+        // The client stays alive on this screen afterwards (no in-game
+        // screenshot, no exit) so the host can capture the real X11 window.
+        if (smokePhase == 2) {
+            if (++smokeFrame >= 60) {
+                Screen screen = client.gui.screen();
+                boolean hasJoin = findButton(screen, "mclink.join") != null;
+                System.out.println("TMC_GUI_SMOKE joinButton=" + hasJoin
+                        + " screen=" + (screen == null ? "null" : screen.getClass().getSimpleName()));
+                smokePhase = 3;
+            }
+            return;
+        }
+        // Phase 3: keep the client alive on the multiplayer screen.
+    }
+
+    // Finds a button by its literal (already-translated) message text, used to
+    // click the multiplayer safety screen's "Proceed" button during the smoke
+    // test. Distinct from findButton, which matches a translation key.
+    private static Button findButtonByLabel(Screen screen, String label) {
         return screen.children().stream()
                 .filter(Button.class::isInstance)
                 .map(Button.class::cast)
