@@ -73,6 +73,11 @@ code.
 - The host needs `Xvfb`, ImageMagick, and Mesa (llvmpipe) for the GL path;
   the script reports `exit 2` rather than a false pass when the client never
   reaches a verdict.
+- The script drives the leaf's `runClient` task, which only the Fabric and
+  Quilt leaves declare. The NeoForge and Forge leaves have no client run task,
+  so the tool cannot reach them until one is added; because the hook is shared
+  per Minecraft version, the button behaviour under test is the same in every
+  loader, so the Fabric result is representative of the 26.3 line.
 - As of this ADR the button renders in all three Fabric loaders
   (1.20.1, 1.21.1, 26.3); the 26.3 regression that motivated the tool is not
   reproducible in Fabric 26.3, but the tool now exists to catch a recurrence

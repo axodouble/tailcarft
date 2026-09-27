@@ -25,7 +25,11 @@
 #
 # Usage:
 #   scripts/gui-smoke.sh [leaf] [timeout-seconds]
-#   leaf        defaults to fabric-1.20.1 (any of the 10 leaves works)
+#   leaf        defaults to fabric-1.20.1. Works for any leaf that exposes a
+#               runClient task - currently the Fabric and Quilt leaves. The
+#               NeoForge and Forge leaves do not declare a client run task yet,
+#               so pass them only once a runClient task is added (the hook code
+#               is shared per version, so the button behaviour is identical).
 #   timeout     defaults to 300 (software rendering is slow to boot)
 #   TMC_DISPLAY (env)  X11 display to use, defaults to :97
 #
