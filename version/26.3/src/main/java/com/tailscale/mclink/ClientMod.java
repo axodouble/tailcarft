@@ -8,17 +8,41 @@
 package com.tailscale.mclink;
 
 import com.mojang.blaze3d.platform.ClipboardManager;
+import java.lang.reflect.Method;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ClientMod {
+    private static final Logger LOG = LoggerFactory.getLogger("mclink");
+
     private static ScreenState state;
+
+    // Connect-button state, driven from the proven per-tick Minecraft hook.
+    // Forge/NeoForge do not weave Mixins into the late-loaded screen classes
+    // (JoinMultiplayerScreen, Screen), so the button is added on the tick hook
+    // instead, which works on every loader. See ADR-005.
+    private static JoinMultiplayerScreen lastMps;
+    private static int lastMpsW;
+    private static int lastMpsH;
+
+    // Cached reflective handles for the protected Screen widget methods, used
+    // when the ScreenAccessorMixin (target Screen) has not been applied.
+    private static Method addWidgetMethod;
+    private static Method removeWidgetMethod;
 
     private ClientMod() {}
 
@@ -30,16 +54,86 @@ public final class ClientMod {
         return state;
     }
 
-    // Kept for the shared loader screen-init hook; 26.3 wires the connect
-    // button through MultiplayerScreenMixin.repositionElements instead.
+    // Kept for the shared loader screen-init hook. 26.3 wires the connect
+    // button through the per-tick ensureConnectButton hook instead (works on
+    // Forge, where the late-loaded MultiplayerScreenMixin is skipped).
     public static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
     }
 
-    public static void repositionConnectButton(Minecraft client, Screen screen, int width, int height) {
-        addConnectButton(client, screen, width, height);
+    // Adds the "Connect with Tailcarft" button to the multiplayer screen.
+    // Idempotent: removes any prior instance first, so re-adding after a
+    // resize (which re-runs vanilla repositionElements) does not stack.
+    private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {
+        Button direct = findButton(screen, "selectServer.direct");
+        if (direct == null) {
+            return;
+        }
+        removeOurs(screen, "mclink.join");
+        int firstRowY = direct.getY();
+        screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
+                .filter(button -> button.getY() == firstRowY)
+                .forEach(button -> button.setY(button.getY() - 24));
+        for (var child : screen.children()) {
+            if (child instanceof ServerSelectionList list) {
+                list.setRectangle(width, height - 120, 0, 32);
+                break;
+            }
+        }
+        mclinkAddWidget(screen, Button.builder(Component.translatable("mclink.join"),
+                button -> client.gui.setScreen(new JoinRemoteScreen(screen)))
+                .bounds(width / 2 - 102, firstRowY, 204, 20).build());
+    }
+
+    /**
+     * Driven from {@link #onTick}. Adds the connect button on the first tick
+     * after the multiplayer screen is shown and again after a resize, which is
+     * when vanilla re-lays-out the widget row. Guarded by instance + size so
+     * the row reposition does not compound on every tick.
+     */
+    private static void ensureConnectButton(Minecraft client) {
+        Screen cur = client.gui.screen();
+        if (!(cur instanceof JoinMultiplayerScreen mps)) {
+            lastMps = null;
+            return;
+        }
+        if (mps != lastMps || mps.width != lastMpsW || mps.height != lastMpsH) {
+            lastMps = mps;
+            lastMpsW = mps.width;
+            lastMpsH = mps.height;
+            addConnectButton(client, mps, mps.width, mps.height);
+        }
+    }
+
+    /**
+     * Adds a widget to a screen via the ScreenAccessorMixin when it has been
+     * applied, otherwise reflectively against the protected
+     * {@code Screen.addRenderableWidget}. The reflective path is needed because
+     * Forge does not apply Mixin to some late-loaded classes, and
+     * {@code addRenderableWidget} is protected so it cannot be called directly.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T extends GuiEventListener & Renderable & NarratableEntry> T mclinkAddWidget(
+            Screen screen, T widget) {
+        if (screen instanceof ScreenAccessor accessor) {
+            return accessor.mclink$addRenderableWidget(widget);
+        }
+        try {
+            if (addWidgetMethod == null) {
+                addWidgetMethod = Screen.class.getDeclaredMethod("addRenderableWidget", GuiEventListener.class);
+                addWidgetMethod.setAccessible(true);
+            }
+            return (T) addWidgetMethod.invoke(screen, widget);
+        } catch (Throwable t) {
+            LOG.error("Failed to add Tailcarft connect button (Screen.addRenderableWidget unreachable)", t);
+            return widget;
+        }
     }
 
     public static void onTick(Minecraft client) {
+        // Add the "Connect with Tailcarft" button on the tick hook (works on
+        // Forge, where the late-loaded MultiplayerScreenMixin is skipped). Runs
+        // before the smoke/normal branch so the smoke test observes the button.
+        ensureConnectButton(client);
         if (System.getenv("TMC_GUI_SMOKE") != null) {
             smokeTick(client);
             return;
@@ -58,27 +152,6 @@ public final class ClientMod {
 
     public static boolean isGuiSmokeTest() {
         return System.getenv("TMC_GUI_SMOKE") != null;
-    }
-
-    private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {
-        Button direct = findButton(screen, "selectServer.direct");
-        if (direct == null) {
-            return;
-        }
-        removeOurs(screen, "mclink.join");
-        int firstRowY = direct.getY();
-        screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
-                .filter(button -> button.getY() == firstRowY)
-                .forEach(button -> button.setY(button.getY() - 24));
-        for (var child : screen.children()) {
-            if (child instanceof ServerSelectionList list) {
-                list.setRectangle(width, height - 120, 0, 32);
-                break;
-            }
-        }
-        ((ScreenAccessor) screen).mclink$addRenderableWidget(Button.builder(Component.translatable("mclink.join"),
-                button -> client.gui.setScreen(new JoinRemoteScreen(screen)))
-                .bounds(width / 2 - 102, firstRowY, 204, 20).build());
     }
 
     /**
@@ -106,7 +179,28 @@ public final class ClientMod {
     private static void removeOurs(Screen screen, String translationKey) {
         Button ours;
         while ((ours = findButton(screen, translationKey)) != null) {
-            ((ScreenAccessor) screen).mclink$removeWidget(ours);
+            mclinkRemoveWidget(screen, ours);
+        }
+    }
+
+    /**
+     * Removes a widget from a screen via the ScreenAccessorMixin when it has
+     * been applied, otherwise reflectively against the protected
+     * {@code Screen.removeWidget}. See {@link #mclinkAddWidget}.
+     */
+    private static void mclinkRemoveWidget(Screen screen, GuiEventListener widget) {
+        if (screen instanceof ScreenAccessor accessor) {
+            accessor.mclink$removeWidget(widget);
+            return;
+        }
+        try {
+            if (removeWidgetMethod == null) {
+                removeWidgetMethod = Screen.class.getDeclaredMethod("removeWidget", GuiEventListener.class);
+                removeWidgetMethod.setAccessible(true);
+            }
+            removeWidgetMethod.invoke(screen, widget);
+        } catch (Throwable t) {
+            LOG.error("Failed to remove Tailcarft connect button (Screen.removeWidget unreachable)", t);
         }
     }
 
@@ -144,6 +238,15 @@ public final class ClientMod {
 
     private static void smokeTick(Minecraft client) {
         Screen cur = client.gui.screen();
+        // Dismiss the first-launch accessibility onboarding screen, which would
+        // otherwise block the title screen and stall the smoke test. Handled here
+        // on the proven per-tick hook (not only in the one-shot screen-init
+        // mixin) so it's robust to startup timing; once we switch screens the
+        // guard stops matching and this runs exactly once.
+        if (cur instanceof AccessibilityOnboardingScreen) {
+            client.gui.setScreen(new TitleScreen());
+            return;
+        }
         // Phase 0: wait until the title screen is ready (its "Multiplayer"
         // button exists), then click it to open the multiplayer safety screen.
         // (The first-launch accessibility onboarding screen is dismissed by
@@ -177,7 +280,7 @@ public final class ClientMod {
                 Screen screen = client.gui.screen();
                 boolean hasJoin = findButton(screen, "mclink.join") != null;
                 System.out.println("TMC_GUI_SMOKE joinButton=" + hasJoin
-                        + " screen=" + (screen == null ? "null" : screen.getClass().getSimpleName()));
+                        + " screen=" + (screen == null ? "null" : screen.getClass().getName()));
                 smokePhase = 3;
             }
             return;

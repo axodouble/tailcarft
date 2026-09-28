@@ -6,6 +6,43 @@ def mc = project.name.substring(project.name.indexOf('-') + 1)
 
 neoForge {
     version = rootProject.findProperty("neoforge.${mc}") as String
+
+    // A runnable client so the headless GUI smoke test (scripts/gui-smoke.sh)
+    // can drive the NeoForge client the same way it drives the Fabric one.
+    // ModDev derives the runClient task from a run named "client"; client()
+    // sets the run type (required). The game directory defaults to run/.
+    // See ADR-004.
+    runs {
+        client {
+            client()
+        }
+    }
+}
+
+// In NeoForge's "joined" dev config (Minecraft + NeoForge merged into one jar),
+// the classpath mod discoverer does not scan the source-set output directories
+// for META-INF/neoforge.mods.toml, so the mod being developed is never
+// discovered on the classpath and the game boots without it. NeoForge's
+// file-based mod discoverer, however, always scans the game directory's mods/
+// folder, and prepareClientRun does not clear it. So load the mod from a real
+// jar placed in run/mods/. The jar task already packages classes + resources
+// together (a complete mod root), so this needs no resource merging.
+def installDevMod = tasks.register('installDevMod') {
+    dependsOn 'jar'
+    def jarTask = tasks.named('jar')
+    def modsDir = layout.projectDirectory.dir('run/mods')
+    outputs.upToDateWhen { false }
+    doLast {
+        // Drop any prior build's dev mod jar so it is not loaded twice.
+        fileTree(modsDir).matching { include 'tailcarft-*.jar' }.files.each { it.delete() }
+        copy {
+            from jarTask
+            into modsDir
+        }
+    }
+}
+tasks.named('runClient') {
+    dependsOn installDevMod
 }
 
 // moddev does not propagate the NeoForge/Minecraft runtime to the test runtime

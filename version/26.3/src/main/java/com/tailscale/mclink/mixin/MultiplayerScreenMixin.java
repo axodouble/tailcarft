@@ -7,7 +7,6 @@
 
 package com.tailscale.mclink.mixin;
 
-import com.tailscale.mclink.ClientMod;
 import com.tailscale.mclink.JoinRemoteScreen;
 import com.tailscale.mclink.ServerListAccessor;
 import com.tailscale.mclink.TailcarftConfig;
@@ -76,10 +75,5 @@ public abstract class MultiplayerScreenMixin extends Screen {
             this.editButton.active = false;
             this.deleteButton.active = false;
         }
-    }
-
-    @Inject(method = "repositionElements()V", at = @At("TAIL"))
-    private void mclink$repositionConnectButton(CallbackInfo ci) {
-        ClientMod.repositionConnectButton(this.minecraft, this, this.width, this.height);
     }
 }

@@ -11,6 +11,62 @@ repositories {
     mavenCentral()
 }
 
+// A runnable client so the headless GUI smoke test (scripts/gui-smoke.sh) can
+// drive the Forge client the same way it drives the Fabric one. ForgeGradle
+// matches the run name against Forge's userdev runs.json for main/args; the
+// client flag redirects stdin. See ADR-004.
+minecraft {
+    runs {
+        client {
+            client = true
+            workingDir = layout.projectDirectory.dir('run')
+        }
+    }
+}
+
+// ForgeGradle 7 hardcodes the Slime Launcher tool's JVM to Java 8
+// (Tools.SLIMELAUNCHER). The run task resolves that launcher eagerly
+// (ToolImpl$ResolvedImpl.getJavaVersion calls javaLauncher.get()), so a missing
+// JDK 8 fails the build before the run can even be created. The Slime Launcher
+// also invokes the game's main class in-process, so Java 8 could not run modern
+// Minecraft anyway. Override the tool's launcher via the fgtools extension so
+// the client uses this project's toolchain (the same JDK the mod is compiled
+// with) instead of the hardcoded Java 8.
+// Forge's userdev run treats the directory that holds META-INF/mods.toml as the
+// mod's root and reads all of the mod's resources (assets, lang) from that same
+// directory. Gradle splits the source-set output into build/classes/java/main
+// (classes) and build/resources/main (resources). Leaving mods.toml only in
+// resources/ makes Forge report "mods that were not found" (the mod's classes
+// live in classes/); putting it in classes/ loads the mod but drops the lang
+// (the assets live in resources/). Copy the processed resources into the classes
+// directory so the mod root holds classes + mods.toml + assets together, exactly
+// like a mod JAR. Runs after processResources so it always copies fresh output.
+def mergeModResources = tasks.register('mergeModResources', Copy) {
+    from layout.buildDirectory.dir('resources/main')
+    into layout.buildDirectory.dir('classes/java/main')
+    outputs.upToDateWhen { false }
+    mustRunAfter 'processResources'
+}
+tasks.named('classes') {
+    dependsOn mergeModResources
+}
+
+// mergeModResources copies the processed resources into the classes directory,
+// so the source-set output now lists each resource twice (once from the classes
+// dir, once from the resources dir). The jar task packages that whole output,
+// which Gradle rejects as a duplicate entry unless a strategy is set. The two
+// copies are byte-identical, so keep the last.
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+def javaVersion = Integer.parseInt(rootProject.findProperty("java.${mc}") ?: '21')
+fgtools.configure('slimelauncher') {
+    javaLauncher = project.javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(javaVersion)
+    }
+}
+
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${rootProject.findProperty("forge.${mc}")}")
 
