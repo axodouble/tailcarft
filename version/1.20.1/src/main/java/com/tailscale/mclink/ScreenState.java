@@ -32,6 +32,7 @@ public final class ScreenState implements AutoCloseable {
 
     private Session session;
     private volatile String lastError;
+    private int lastLanPort = -1;
 
     /**
      * Called by the {@code IntegratedServer.publishServer} mixin when vanilla
@@ -46,8 +47,10 @@ public final class ScreenState implements AutoCloseable {
         if (existing != null) {
             if (existing.mode == SessionMode.HOST && existing.process.isAlive()
                     && existing.targetPort == port) {
-                LOG.info("host session already targets port {}; re-announcing", port);
-                announceInvite(existing.invite);
+                // Already hosting this port. Both the IntegratedServerMixin (where
+                // it is woven) and the per-tick syncLanHosting can fire for the same
+                // port, so do not re-announce; the invite was posted when this
+                // session started. See ADR-005.
                 return;
             }
             stop();
@@ -59,6 +62,13 @@ public final class ScreenState implements AutoCloseable {
             }
         });
         announceInvite(invite);
+    }
+
+    public synchronized void onUnpublished() {
+        if (session == null || session.mode != SessionMode.HOST) {
+            return;
+        }
+        stop();
     }
 
     /**
@@ -106,6 +116,7 @@ public final class ScreenState implements AutoCloseable {
     }
 
     public synchronized void tick(Minecraft client) {
+        syncLanHosting(client);
         if (session == null) {
             return;
         }
@@ -120,6 +131,29 @@ public final class ScreenState implements AutoCloseable {
                 && !(client.screen instanceof ConnectScreen)
                 && !(client.screen instanceof JoinRemoteScreen)) {
             stop();
+        }
+    }
+
+    /**
+     * Loader-independent LAN-hosting trigger. The {@code IntegratedServerMixin}
+     * that calls {@link #onPublished} is not woven on ModLauncher loaders
+     * (Forge/NeoForge) because {@code IntegratedServer} is a late-loaded class
+     * (see ADR-005), so on those loaders a plain "Open to LAN" world is never
+     * shared. This polls the integrated server's published LAN port from the
+     * always-woven per-tick hook and drives {@link #onPublished}/
+     * {@link #onUnpublished} on transitions, so hosting works on every loader.
+     * On loaders where the mixin does fire, the port is already being hosted by
+     * the time this runs and {@code onPublished} is a no-op for the same port.
+     */
+    private void syncLanHosting(Minecraft client) {
+        IntegratedServer server = client.getSingleplayerServer();
+        int port = (server != null && server.isRunning()) ? server.getPort() : -1;
+        if (port > 0 && port != lastLanPort) {
+            lastLanPort = port;
+            onPublished(server, port);
+        } else if (port <= 0 && lastLanPort > 0) {
+            lastLanPort = -1;
+            onUnpublished();
         }
     }
 

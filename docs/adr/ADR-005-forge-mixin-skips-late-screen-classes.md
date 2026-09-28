@@ -92,6 +92,42 @@ instance + size (so it does not re-add every tick or stack after a resize), and
 the protected-method reflection path must track the `Screen` widget API per
 version.
 
+## Second consequence: the LAN-hosting trigger is also a late-class Mixin
+
+The same root cause breaks a second, non-GUI behaviour. "Open to LAN" in a
+singleplayer world is detected by a `@Mixin(IntegratedServer.class)` that hooks
+`publishServer(scope, port)` and calls `ScreenState.onPublished(server, port)`,
+which starts the Tailcarft host on the published LAN port and posts the invite
+in chat. `IntegratedServer` is loaded only when a singleplayer world is entered —
+long after Mixin preparation — so on a ModLauncher loader (Forge, NeoForge) that
+Mixin is **not woven**, `onPublished` never fires, and a plain "Open to LAN" world
+is never shared on those loaders. (Fabric/Quilt weave it fine, because the agent
+applies the Mixin whenever the class is defined.)
+
+The only other hosting path — `ServerStartedEvent → ServerMod.onStarted →
+ServerHost.start(server)` — targets `127.0.0.1:` + `server.getPort()`. For an
+integrated server `getPort()` returns the `publishedPort` field (initialised `-1`,
+set only when LAN is opened), so for a world that is not yet on LAN it targets
+port `-1` and the helper rejects it; this path is a harmless dead end for
+singleplayer and is not what shares the LAN port.
+
+### Fix
+
+Drive the hosting trigger from the always-woven per-tick hook, exactly as the
+button is driven. `ScreenState` gains a `syncLanHosting(client)` method, called at
+the top of `tick()`: it reads `client.getSingleplayerServer().getPort()` and,
+**only on a transition** (`-1 → port` or `port → -1`, tracked in `lastLanPort`),
+calls `onPublished` / `onUnpublished`. `onPublished` is de-duped for the same
+live port, so on a loader where the `IntegratedServer` Mixin *is* woven, the mixin
+and the tick hook firing for the same port yield exactly one host session and one
+chat invite, not two.
+
+The `IntegratedServer.getPort() → publishedPort` contract is confirmed for all
+three supported versions (26.3, 1.21.1, 1.20.1) — it is the same field the mixin
+receives as its `port` argument — so the fix is applied to all three `ScreenState`
+classes. On the Mixin-less loaders it is the sole hosting trigger; on the
+Mixin-woven loaders it is a de-duped no-op once the mixin has fired.
+
 ## Reproducing the diagnosis (runbook for future agents)
 
 This is the instrumentation that established the root cause. Keep it as a
@@ -196,4 +232,5 @@ chosen workaround.
 - **ADRs:** ADR-001 (exit-point hooks), ADR-002 (static mixin verification),
   ADR-003 (loader/version matrix), ADR-004 (headless GUI smoke test)
 - **FDRs:** FDR-001 (sharing a singleplayer world — the Join flow this button
-  serves)
+  serves, and the "Open to LAN" hosting trigger in the "second consequence"
+  section above)
