@@ -73,15 +73,18 @@ code.
 - The host needs `Xvfb`, ImageMagick, and Mesa (llvmpipe) for the GL path;
   the script reports `exit 2` rather than a false pass when the client never
   reaches a verdict.
-- The script drives the leaf's `runClient` task, which only the Fabric and
-  Quilt leaves declare. The NeoForge and Forge leaves have no client run task,
-  so the tool cannot reach them until one is added; because the hook is shared
-  per Minecraft version, the button behaviour under test is the same in every
-  loader, so the Fabric result is representative of the 26.3 line.
-- As of this ADR the button renders in all three Fabric loaders
-  (1.20.1, 1.21.1, 26.3); the 26.3 regression that motivated the tool is not
-  reproducible in Fabric 26.3, but the tool now exists to catch a recurrence
-  in any loader.
+- The script drives the leaf's `runClient` task. All three 26.3 loaders
+  (Fabric, Forge, NeoForge) declare a client run task, so the tool reaches each
+  of them directly: `TMC_DISPLAY=:104 ./scripts/gui-smoke.sh <leaf> 420`. The
+  NeoForge leaf additionally requires its `installDevMod` task to have placed
+  the built JAR in `run/mods/` (the classpath-based mod discoverer skips
+  source-set output dirs), which `runClient` depends on.
+- As of this ADR the button renders in all three 26.3 loaders. The 26.3
+  regression that motivated the tool was real **on Forge 26.3 only** and is
+  explained by ADR-005 (the Forge/NeoForge Mixin pipeline does not weave the
+  late `Screen`/`JoinMultiplayerScreen` targets, so the button is added from
+  the `Minecraft` tick hook instead). The tool now catches a recurrence in any
+  loader.
 - A version that changes its multiplayer navigation (new intermediate screen,
   renamed button, new onboarding gate) will break the hook for that version
   only; the fix is local to that version's `ClientMod` and Mixin.

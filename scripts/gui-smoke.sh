@@ -26,10 +26,11 @@
 # Usage:
 #   scripts/gui-smoke.sh [leaf] [timeout-seconds]
 #   leaf        defaults to fabric-1.20.1. Works for any leaf that exposes a
-#               runClient task - currently the Fabric and Quilt leaves. The
-#               NeoForge and Forge leaves do not declare a client run task yet,
-#               so pass them only once a runClient task is added (the hook code
-#               is shared per version, so the button behaviour is identical).
+#               runClient task - all three 26.3 loaders do (fabric-26.3,
+#               forge-26.3, neoforge-26.3), plus the older Fabric/Quilt leaves.
+#               The NeoForge leaf needs its installDevMod task to have placed
+#               the built JAR in run/mods/ (runClient depends on it), because
+#               the classpath mod discoverer skips source-set output dirs.
 #   timeout     defaults to 300 (software rendering is slow to boot)
 #   TMC_DISPLAY (env)  X11 display to use, defaults to :97
 #

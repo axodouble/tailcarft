@@ -6,3 +6,4 @@
 | [ADR-002](ADR-002-static-mixin-verification.md) | Verify mixins statically with ASM in the leaf unit tests | Accepted | 2026-09-23 |
 | [ADR-003](ADR-003-loader-and-version-matrix.md) | Loader and Minecraft version matrix follows upstream loader availability | Accepted | 2026-09-25 |
 | [ADR-004](ADR-004-headless-gui-smoke-test.md) | Headless GUI smoke test drives the client to the multiplayer screen and checks the Connect button | Accepted | 2026-09-27 |
+| [ADR-005](ADR-005-forge-mixin-skips-late-screen-classes.md) | Forge/NeoForge don't weave Mixins into late GUI-screen classes; drive screen UI from an early, always-woven class (Minecraft tick hook) | Accepted | 2026-09-28 |
