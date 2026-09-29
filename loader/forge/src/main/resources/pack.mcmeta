@@ -1,7 +1,6 @@
 {
   "pack": {
     "description": "Tailcarft",
-    "min_format": 121,
-    "max_format": 121
+    "pack_format": 34
   }
 }

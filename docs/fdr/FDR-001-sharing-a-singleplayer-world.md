@@ -120,5 +120,6 @@ must switch loaders or wait.
 
 - **ADRs:** ADR-001, ADR-002, ADR-003, ADR-004, ADR-005 (the Join-side Connect
   button is added from the `Minecraft` tick hook because Forge/NeoForge do not
-  weave the late `Screen`/`JoinMultiplayerScreen` Mixins)
+  weave the late `Screen`/`JoinMultiplayerScreen` Mixins), ADR-006 (Quilt
+  Loader version floor for MixinExtras compatibility)
 - **FDRs:** —

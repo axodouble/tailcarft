@@ -77,11 +77,12 @@ early, always-woven class and drive the screen UI from there:
   over the protected `Screen` widget methods when it is not (the Forge/NeoForge
   case).
 
-The screen-targeting Mixins are kept for the behaviour they carry that is not
-replicated by the tick hook (the marker server-list entry and the
-join-intercept on that entry); on a ModLauncher loader those simply do not
-apply, and the tick-hook button is the primary, loader-independent join path so
-the feature remains usable.
+The screen-targeting Mixins are kept for the loaders where they are woven
+(Fabric/Quilt): `MultiplayerScreenMixin` adds the marker server-list entry and
+intercepts the click on it, and `ConnectScreenMixin` intercepts a directly typed
+invite address. On a ModLauncher loader (Forge/NeoForge) those are not woven,
+so the tick hook carries that behaviour too — the marker entry and its
+click-to-join re-route, documented in the "third consequence" below.
 
 **Why:** It is the smallest change that makes the button render identically on
 Fabric, Forge, and NeoForge, and it degrades gracefully (accessor-when-present,
@@ -127,6 +128,50 @@ three supported versions (26.3, 1.21.1, 1.20.1) — it is the same field the mix
 receives as its `port` argument — so the fix is applied to all three `ScreenState`
 classes. On the Mixin-less loaders it is the sole hosting trigger; on the
 Mixin-woven loaders it is a de-duped no-op once the mixin has fired.
+
+## Third consequence: the marker server-list entry and its click-to-join are also late-class Mixins
+
+The same root cause breaks the server-config feature on the same loaders. A
+server config (`run/config/mclink.json`) is surfaced on the multiplayer screen
+as a marker entry (`TailcarftServerEntry`, a `ServerData` whose `ip` is a
+sentinel) that, when clicked, opens the Tailcarft join flow instead of dialing
+the sentinel. That behaviour — adding the entry to the list, intercepting the
+click on it, and disabling edit/delete while it is selected — was delivered
+entirely by `MultiplayerScreenMixin` (`@Mixin(JoinMultiplayerScreen.class)`)
+and `ConnectScreenMixin` (`@Mixin(ConnectScreen.class)`). On a ModLauncher
+loader (Forge, NeoForge) **neither is woven**: `JoinMultiplayerScreen` is a late
+GUI-screen class, and `ConnectScreen` is created even later (only when a join is
+attempted). So on those loaders the marker entry never appeared and click-to-join
+never fired; only the tick-hook "Connect with Tailcarft" button worked, and the
+config-driven entry was silently missing.
+
+### Fix
+
+Deliver the marker entry and its click-to-join from the always-woven per-tick
+hook, mirroring the button and hosting fixes. Two changes:
+
+1. **The sentinel is made to hang.** It was changed from a non-dialable
+   placeholder (`mclink:tailcarft`, which failed instantly at `getPort()` — the
+   connector thread threw before any `ConnectScreen` was shown, leaving the hook
+   no window to act) to a **hanging** address — an RFC 5737 TEST-NET-1 host
+   (`192.0.2.1`). When the marker is joined, the vanilla `ConnectScreen` opens
+   and hangs on the TCP connect instead of failing. That hang is the window.
+
+2. **The tick hook owns the entry and the re-route.** On each tick, while the
+   current screen is the multiplayer screen, `ClientMod.ensureMarkerEntry` adds
+   the marker entry reflectively (if absent), tracks whether it is the selected
+   entry, and disables edit/delete while it is. When the selected entry is the
+   marker and the screen next becomes a `ConnectScreen`, the hook sets that
+   screen's `aborted` flag and re-routes to the same `JoinRemoteScreen` the Mixin
+   produces on Fabric.
+
+On Fabric/Quilt the Mixin intercepts the join at `join(ServerData)` HEAD and
+cancels it, so the sentinel is never dialed and the tick-hook re-route is inert
+(the entry is already present from the Mixin, so the reflective add is a no-op).
+On Forge/NeoForge the Mixin is absent, so the tick-hook is the sole path. Both
+converge on `JoinRemoteScreen` with the config's invite. Verified by
+`scripts/smoke.sh server <leaf>` (ADR-004) on all three 26.3 loaders: Fabric
+never dials the sentinel, Forge/NeoForge do and are re-routed.
 
 ## Reproducing the diagnosis (runbook for future agents)
 

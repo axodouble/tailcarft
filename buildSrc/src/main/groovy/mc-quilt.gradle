@@ -14,11 +14,25 @@ dependencies {
     modImplementation "org.quiltmc:quilt-loader:${rootProject.findProperty("quiltloader.${mc}")}"
 
     // Quilt Loom does not put the Mixin API on the compile classpath (Fabric
-    // Loom does). quilt-loader supplies the Mixin engine at runtime, so this is
-    // compile/test-only and is not bundled into the remapped jar.
+    // Loom does). Unlike Fabric Loom, Quilt Loom (1.15.1) does not place the
+    // Mixin engine on the game's runtime classpath, and quilt-loader neither
+    // bundles it nor declares it as a dependency, so the engine (and its ASM
+    // transitive dependency) must be provided here or the loader dies in
+    // MinecraftGameProvider.<init> with NoClassDefFoundError:
+    // org/objectweb/asm/ClassVisitor. See issue #31.
     def spongemixin = "net.fabricmc:sponge-mixin:${rootProject.findProperty('spongemixin')}"
-    compileOnly spongemixin
+    implementation spongemixin
     testImplementation spongemixin
+    // quilt-loader also needs its own bootstrap libs at boot (mapping parser,
+    // remapper, access-widener); Quilt Loom does not place them on the runtime
+    // classpath and quilt-loader declares none of them as dependencies.
+    implementation "net.fabricmc:tiny-mappings-parser:${rootProject.findProperty('tinymappingsparser')}"
+    implementation "net.fabricmc:tiny-remapper:${rootProject.findProperty('tinyremapper')}"
+    implementation "net.fabricmc:access-widener:${rootProject.findProperty('accesswidener')}"
+    // Quilt-specific loader libs (JSON5 parser + config, the latter pulling its
+    // serializers and night-config transitively).
+    implementation "org.quiltmc:quilt-json5:${rootProject.findProperty('quiltjson5')}"
+    implementation "org.quiltmc:quilt-config:${rootProject.findProperty('quiltconfig')}"
 }
 
 // Make the named Minecraft classes and the asm/gson they pull in available to
@@ -27,3 +41,4 @@ configurations {
     testCompileClasspath.extendsFrom runtimeClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
 }
+

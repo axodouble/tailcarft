@@ -46,9 +46,12 @@ Feasibility was checked against upstream on 2026-09-25:
 - Forge 1.21.1 and 26.3 reuse the existing Forge loader sources; if the newer
   Forge APIs drift, the same escape-hatch mechanism applies.
 - Quilt Loom (a fork of Fabric Loom) does not place the Mixin API on the
-  compile classpath the way Fabric Loom does. The quilt leaves therefore
-  declare the Mixin API explicitly as a compile/test-only dependency
-  (`spongemixin` in `gradle.properties`) and keep it off the runtime classpath
-  so it is not bundled into the jar; quilt-loader supplies the Mixin engine at
-  runtime. If Quilt Loom ever injects it itself, the explicit dependency can be
-  dropped.
+  compile classpath the way Fabric Loom does. Unlike Fabric Loom, Quilt Loom
+  (1.15.1) does not place the Mixin engine or the mapping parser on the game
+  runtime classpath, and quilt-loader neither bundles them nor declares them as
+  dependencies. The quilt leaves therefore declare the Mixin engine
+  (`spongemixin`) and the loader bootstrap libraries (tiny-mappings-parser,
+  tiny-remapper, access-widener, quilt-json5, quilt-config) as `implementation`
+  dependencies so they are bundled into the jar and available at runtime
+  (issue #31). If Quilt Loom or quilt-loader ever supplies them themselves, the
+  explicit dependencies can be dropped.
