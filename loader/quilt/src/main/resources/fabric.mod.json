@@ -16,8 +16,8 @@
   },
   "mixins": [
     "mclink.mixins.json",
-    { "config": "mclink.quilt.mixins.json", "required": true, "environment": "client" },
-    { "config": "mclink.quilt.server.mixins.json", "required": true, "environment": "server" }
+    "mclink.quilt.mixins.json",
+    "mclink.quilt.server.mixins.json"
   ],
   "depends": {
     "quilt_loader": ">=0.16.4",

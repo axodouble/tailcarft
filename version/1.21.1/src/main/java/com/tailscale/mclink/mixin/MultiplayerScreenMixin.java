@@ -7,6 +7,7 @@
 
 package com.tailscale.mclink.mixin;
 
+import com.tailscale.mclink.ClientMod;
 import com.tailscale.mclink.JoinRemoteScreen;
 import com.tailscale.mclink.ServerListAccessor;
 import com.tailscale.mclink.TailcarftConfig;
@@ -40,6 +41,7 @@ public abstract class MultiplayerScreenMixin extends Screen {
 
     @Inject(method = "init()V", at = @At("TAIL"))
     private void mclink$ensureMarkerEntry(CallbackInfo ci) {
+        ClientMod.onScreenInit(this.minecraft, (net.minecraft.client.gui.screens.Screen) (Object) this, this.width, this.height);
         TailcarftConfig config = TailcarftConfig.load();
         if (config == null) {
             return;

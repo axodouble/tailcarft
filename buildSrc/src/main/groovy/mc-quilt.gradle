@@ -33,6 +33,27 @@ dependencies {
     // serializers and night-config transitively).
     implementation "org.quiltmc:quilt-json5:${rootProject.findProperty('quiltjson5')}"
     implementation "org.quiltmc:quilt-config:${rootProject.findProperty('quiltconfig')}"
+
+    // Bundle the above into the release JAR via JiJ (Jar-in-Jar). The
+    // "include" configuration tells Loom's processIncludeJars task to nest
+    // these JARs inside the mod JAR so they are available at runtime for
+    // end users (issue #31). The configuration is non-transitive, so all
+    // transitive dependencies must be listed explicitly.
+    def asmVersion = "9.8"
+    include spongemixin
+    include "net.fabricmc:tiny-mappings-parser:${rootProject.findProperty('tinymappingsparser')}"
+    include "net.fabricmc:tiny-remapper:${rootProject.findProperty('tinyremapper')}"
+    include "net.fabricmc:access-widener:${rootProject.findProperty('accesswidener')}"
+    include "org.quiltmc:quilt-json5:${rootProject.findProperty('quiltjson5')}"
+    include "org.quiltmc:quilt-config:${rootProject.findProperty('quiltconfig')}"
+    // Transitive: sponge-mixin -> asm-tree -> asm-analysis/commons/util -> asm
+    include "org.ow2.asm:asm:${asmVersion}"
+    include "org.ow2.asm:asm-tree:${asmVersion}"
+    include "org.ow2.asm:asm-analysis:${asmVersion}"
+    include "org.ow2.asm:asm-commons:${asmVersion}"
+    include "org.ow2.asm:asm-util:${asmVersion}"
+    // Transitive: quilt-config -> annotations
+    include "org.jetbrains:annotations:23.0.0"
 }
 
 // Make the named Minecraft classes and the asm/gson they pull in available to
