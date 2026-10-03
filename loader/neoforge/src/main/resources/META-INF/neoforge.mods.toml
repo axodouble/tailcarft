@@ -3,13 +3,14 @@ loaderVersion = "[4,)"
 license = "BSD-3-Clause"
 
 [[mods]]
-modId = "tailcarft"
+modId = "cauda"
 version = "${version}"
-displayName = "Tailcarft"
-description = "Share Minecraft worlds through Tailcarft's userspace WireGuard transport."
+displayName = "Cauda"
+description = "Share a singleplayer Minecraft world with friends over the internet — no dedicated server and no account. Cauda publishes your world the way vanilla Open to LAN does and tunnels the game port through a lightweight userspace WireGuard transport, so friends can join with a short-lived invite."
+authors = ["Jasper \"Axodouble\" V."]
 
 [[mixins]]
-config = "mclink.mixins.json"
+config = "cauda.mixins.json"
 
 [[mixins]]
-config = "mclink.neoforge.mixins.json"
+config = "cauda.neoforge.mixins.json"

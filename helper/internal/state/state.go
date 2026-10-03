@@ -45,7 +45,7 @@ func Load(path string) (*File, error) {
 // Save writes f to path atomically (temp file + rename) with 0600
 // permissions, because the file contains a private key.
 func Save(path string, f *File) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".mclink-state-*.tmp")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".cauda-state-*.tmp")
 	if err != nil {
 		return err
 	}

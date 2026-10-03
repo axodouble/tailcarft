@@ -1,0 +1,41 @@
+/*
+ * Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+package pe.jas.cauda;
+
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+
+@Mod(CaudaMod.MODID)
+public class CaudaMod {
+    public static final String MODID = "cauda";
+
+    public CaudaMod(IEventBus modEventBus, ModContainer modContainer) {
+        NeoForgeRuntimeEnv env = new NeoForgeRuntimeEnv();
+        GameRuntime.init(env);
+
+        NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> ServerMod.onStarted(event.getServer()));
+        NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> ServerMod.onStopping());
+
+        if (env.isClient()) {
+            // Client wiring lives in NeoForgeClientInit, a client-only class loaded
+            // reflectively so THIS class's bytecode (verified on a dedicated server,
+            // where net.minecraft.client.* is absent) never references a client class.
+            // The gate is false on a dedicated server, so the client class is never
+            // loaded there.
+            try {
+                Class.forName("pe.jas.cauda.NeoForgeClientInit").getMethod("init").invoke(null);
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException("Failed to initialize Cauda client", e);
+            }
+        }
+    }
+}

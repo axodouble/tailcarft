@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "pe.jas.cauda.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "ServerListMixin",
+    "MultiplayerScreenMixin",
+    "ConnectScreenMixin",
+    "ScreenAccessorMixin",
+    "IntegratedServerMixin",
+    "MinecraftTickMixin",
+    "ShareToLanScreenMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

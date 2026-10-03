@@ -34,7 +34,7 @@ def installDevMod = tasks.register('installDevMod') {
     outputs.upToDateWhen { false }
     doLast {
         // Drop any prior build's dev mod jar so it is not loaded twice.
-        fileTree(modsDir).matching { include 'tailcarft-*.jar' }.files.each { it.delete() }
+        fileTree(modsDir).matching { include 'cauda-*.jar' }.files.each { it.delete() }
         copy {
             from jarTask
             into modsDir

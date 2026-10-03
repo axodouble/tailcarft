@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "package": "pe.jas.cauda.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "ClientShutdownMixin",
+    "ModLanguageMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

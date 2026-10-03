@@ -1,0 +1,29 @@
+// Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package pe.jas.cauda.mixin;
+
+import pe.jas.cauda.ClientMod;
+import net.minecraft.client.Minecraft;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(Minecraft.class)
+public abstract class MinecraftTickMixin {
+    @Inject(method = "tick()V", at = @At("HEAD"))
+    private void cauda$onTick(CallbackInfo ci) {
+        ClientMod.onTick(Minecraft.getInstance());
+    }
+
+    @Redirect(
+        method = "runTick(Z)V",
+        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;limitDisplayFPS(I)V")
+    )
+    private void cauda$skipFpsLimit(int fpsLimit) {
+    }
+}

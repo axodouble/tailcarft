@@ -57,10 +57,10 @@ tasks.named('test') {
 }
 
 base {
-    archivesName = "tailcarft-${modVersion}-${loader}-${mc}"
+    archivesName = "cauda-${modVersion}-${loader}-${mc}"
 }
 
-// Jar files come out named exactly tailcarft-<mod_version>-<loader>-<mc>.jar
+// Jar files come out named exactly cauda-<mod_version>-<loader>-<mc>.jar
 // (no trailing -<version> suffix); project.version still feeds resource expansion.
 tasks.withType(AbstractArchiveTask).configureEach {
     archiveVersion = ''

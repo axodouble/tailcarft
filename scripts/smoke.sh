@@ -4,17 +4,17 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Headless smoke-test dispatcher for the mclink loaders. Boots the client
+# Headless smoke-test dispatcher for the cauda loaders. Boots the client
 # OFFLINE under Xvfb + Mesa software GL (no GPU, no Mojang auth) and drives a
 # single env-gated hook in the leaf's ClientMod, then greps the verdict line
 # the hook prints.
 #
 # Subcommands:
-#   gui     verify the "join with tailcarft" (mclink.join) button is present on
+#   gui     verify the "join with cauda" (cauda.join) button is present on
 #           the Multiplayer screen (delegates to gui-smoke.sh).
-#   server  seed a server-config invite (run/config/mclink.json), open the
+#   server  seed a server-config invite (run/config/cauda.json), open the
 #           Multiplayer screen, and verify the marker server entry is present
-#           AND a click on it is re-routed to the Tailcarft join flow
+#           AND a click on it is re-routed to the Cauda join flow
 #           (JoinRemoteScreen). This is the server-config feature (ADR-005): on
 #           ModLauncher loaders the late-loaded MultiplayerScreenMixin is not
 #           woven, so the entry + click-to-join ride the per-tick hook.
@@ -27,7 +27,7 @@
 #
 # Env:
 #   TMC_DISPLAY       X11 display to use (default :97)
-#   TMC_SMOKE_INVITE  mclink.json "tailcat" invite to seed (server subcommand
+#   TMC_SMOKE_INVITE  cauda.json "tailcat" invite to seed (server subcommand
 #                     only). Defaults to a structurally-valid smoke invite; the
 #                     re-route is verified before the (fake) DERP connect fails.
 #
@@ -56,9 +56,9 @@ case "$SUB" in
     [ -d "$ROOT/$LEAF" ] || { echo "ERROR: unknown leaf '$LEAF' (no directory)" >&2; exit 2; }
 
     INVITE=${TMC_SMOKE_INVITE:-"mcl1_eyJ2ZXJzaW9uIjoxLCJ0YWlsY2F0IjoidGNzbW9rZXRlc3QwMSJ9"}
-    CONFIG="$ROOT/$LEAF/run/config/mclink.json"
+    CONFIG="$ROOT/$LEAF/run/config/cauda.json"
     mkdir -p "$(dirname "$CONFIG")"
-    printf '{"name":"Tailcarft Smoke","tailcat":"%s"}\n' "$INVITE" > "$CONFIG"
+    printf '{"name":"Cauda Smoke","tailcat":"%s"}\n' "$INVITE" > "$CONFIG"
 
     LOG="/tmp/server-smoke-$LEAF.log"
 

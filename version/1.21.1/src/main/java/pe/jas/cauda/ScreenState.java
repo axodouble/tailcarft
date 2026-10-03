@@ -1,0 +1,237 @@
+/*
+ * Copyright (c) 2026, Jasper (Axodouble) V. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+package pe.jas.cauda;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+public final class ScreenState implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger("cauda");
+    private static final Duration STARTUP_TIMEOUT = Duration.ofSeconds(20);
+
+    private Session session;
+    private volatile String lastError;
+    private int lastLanPort = -1;
+
+    /**
+     * Called by the {@code IntegratedServer.publishServer} mixin when vanilla
+     * opens the world to LAN, so a plain "Open to LAN" world also becomes a
+     * Cauda share. A host session already targeting the same port is left
+     * running so re-sharing never drops existing connections; a different port
+     * restarts the helper on the new one.
+     */
+    public synchronized void onPublished(IntegratedServer server, int port) {
+        LOG.info("world opened to LAN on port {}", port);
+        Session existing = session;
+        if (existing != null) {
+            if (existing.mode == SessionMode.HOST && existing.process.isAlive()
+                    && existing.targetPort == port) {
+                // Already hosting this port. Both the IntegratedServerMixin (where
+                // it is woven) and the per-tick syncLanHosting can fire for the same
+                // port, so do not re-announce; the invite was posted when this
+                // session started. See ADR-005.
+                return;
+            }
+            stop();
+        }
+        CompletableFuture<String> invite = startHosting(server, port);
+        invite.whenComplete((code, error) -> {
+            if (error != null && lastError == null) {
+                lastError = error.getMessage() == null ? error.toString() : error.getMessage();
+            }
+        });
+        announceInvite(invite);
+    }
+
+    public synchronized void onUnpublished() {
+        if (session == null || session.mode != SessionMode.HOST) {
+            return;
+        }
+        stop();
+    }
+
+    /**
+     * Prints the invite as a client system message once the helper is ready,
+     * so the player can select and copy it from the chat, mirroring how
+     * vanilla announces that the world was opened to LAN.
+     */
+    private void announceInvite(CompletableFuture<String> invite) {
+        Minecraft client = Minecraft.getInstance();
+        invite.whenComplete((code, error) -> client.execute(() -> {
+            if (error == null && code != null && client.player != null) {
+                client.gui.getChat().addMessage(
+                        Component.literal("Cauda invite: ")
+                                .append(ComponentUtils.copyOnClickText(code)));
+                LOG.info("announced the cauda invite in chat");
+            } else if (error != null) {
+                LOG.warn("could not announce the cauda invite: {}", error);
+            }
+        }));
+    }
+
+    /**
+     * The invite of the current host session, or null when there is no host
+     * session or its helper has not become ready yet.
+     */
+    public synchronized String currentInvite() {
+        if (session != null && session.mode == SessionMode.HOST && session.invite != null) {
+            return session.invite.getNow(null);
+        }
+        return null;
+    }
+
+    public synchronized CompletableFuture<Void> join(Minecraft client, Screen parent, String invitation) {
+        stop();
+        try {
+            Session started = start(SessionMode.JOIN, List.of("join", "--invite", invitation.trim()), -1);
+            return awaitReady(started).thenAccept(event -> client.execute(() -> {
+                ServerData info = new ServerData("Cauda World", event.address(), ServerData.Type.OTHER);
+                ConnectScreen.startConnecting(parent, client, ServerAddress.parseString(event.address()), info, false, null);
+            }));
+        } catch (Exception e) {
+            stop();
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    public synchronized void tick(Minecraft client) {
+        syncLanHosting(client);
+        if (session == null) {
+            return;
+        }
+        if (!session.process.isAlive()) {
+            stop();
+            return;
+        }
+        if (session.mode == SessionMode.HOST
+                && (!client.hasSingleplayerServer() || client.getSingleplayerServer() == null || !client.getSingleplayerServer().isRunning())) {
+            stop();
+        } else if (session.mode == SessionMode.JOIN && client.level == null
+                && !(client.screen instanceof ConnectScreen)
+                && !(client.screen instanceof JoinRemoteScreen)) {
+            stop();
+        }
+    }
+
+    /**
+     * Loader-independent LAN-hosting trigger. The {@code IntegratedServerMixin}
+     * that calls {@link #onPublished} is not woven on ModLauncher loaders
+     * (Forge/NeoForge) because {@code IntegratedServer} is a late-loaded class
+     * (see ADR-005), so on those loaders a plain "Open to LAN" world is never
+     * shared. This polls the integrated server's published LAN port from the
+     * always-woven per-tick hook and drives {@link #onPublished}/
+     * {@link #onUnpublished} on transitions, so hosting works on every loader.
+     * On loaders where the mixin does fire, the port is already being hosted by
+     * the time this runs and {@code onPublished} is a no-op for the same port.
+     */
+    private void syncLanHosting(Minecraft client) {
+        IntegratedServer server = client.getSingleplayerServer();
+        int port = (server != null && server.isRunning()) ? server.getPort() : -1;
+        if (port > 0 && port != lastLanPort) {
+            lastLanPort = port;
+            onPublished(server, port);
+        } else if (port <= 0 && lastLanPort > 0) {
+            lastLanPort = -1;
+            onUnpublished();
+        }
+    }
+
+    public synchronized void stop() {
+        if (session == null) {
+            return;
+        }
+        Session stopped = session;
+        session = null;
+        stopped.process.close();
+    }
+
+    public String takeError() {
+        String value = lastError;
+        lastError = null;
+        return value;
+    }
+
+    @Override
+    public synchronized void close() {
+        stop();
+    }
+
+    private Session start(SessionMode mode, List<String> arguments, int targetPort) throws Exception {
+        HelperProcess process = HelperProcess.start(arguments, event -> onEvent(event));
+        session = new Session(mode, process, targetPort);
+        return session;
+    }
+
+    private CompletableFuture<String> startHosting(IntegratedServer server, int port) {
+        try {
+            Path stateDir = server.getServerDirectory().resolve("cauda");
+            Files.createDirectories(stateDir);
+            List<String> arguments = new ArrayList<>(List.of("host", "--target", "127.0.0.1:" + port));
+            arguments.add("--state-file");
+            arguments.add(stateDir.resolve("state.json").toString());
+            Session started = start(SessionMode.HOST, arguments, port);
+            started.invite = awaitReady(started).thenApply(HelperEvent::invite);
+            return started.invite;
+        } catch (Exception e) {
+            LOG.warn("could not start the host session on port {}", port, e);
+            stop();
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private CompletableFuture<HelperEvent> awaitReady(Session expected) {
+        return expected.process.ready(STARTUP_TIMEOUT).whenComplete((event, error) -> {
+            if (error != null) {
+                synchronized (this) {
+                    if (session == expected) {
+                        stop();
+                    }
+                }
+            }
+        });
+    }
+
+    private void onEvent(HelperEvent event) {
+        if (event.type().equals("error")) {
+            lastError = event.message();
+            synchronized (this) {
+                stop();
+            }
+        }
+    }
+
+    private enum SessionMode { HOST, JOIN }
+
+    private static final class Session {
+        final SessionMode mode;
+        final HelperProcess process;
+        final int targetPort;
+        CompletableFuture<String> invite;
+
+        Session(SessionMode mode, HelperProcess process, int targetPort) {
+            this.mode = mode;
+            this.process = process;
+            this.targetPort = targetPort;
+        }
+    }
+}

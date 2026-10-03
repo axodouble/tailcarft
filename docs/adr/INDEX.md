@@ -9,3 +9,4 @@
 | [ADR-005](ADR-005-forge-mixin-skips-late-screen-classes.md) | Forge/NeoForge don't weave Mixins into late GUI-screen classes; drive screen UI from an early, always-woven class (Minecraft tick hook) | Accepted | 2026-09-28 |
 | [ADR-006](ADR-006-quilt-loader-mixinextras-version-floor.md) | Quilt Loader version floor 0.30.2-beta.1 (MixinExtras 0.5.5 fixes @Redirect ClassCastException) | Accepted | 2026-09-29 |
 | [ADR-007](ADR-007-quilt-mod-assets-not-resource-packs.md) | Quilt mod assets are not resource packs — merge the mod's lang into a fresh ClientLanguage from the Minecraft tick hook | Accepted | 2026-10-03 |
+| [ADR-008](ADR-008-rebrand-to-cauda.md) | Rebrand the mod from Tailcarft/mclink to Cauda (unified id, package, assets, authorship) | Accepted | 2026-10-03 |

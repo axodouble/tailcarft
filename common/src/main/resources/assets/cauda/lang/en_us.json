@@ -1,0 +1,10 @@
+{
+  "cauda.join": "Connect with Cauda",
+  "cauda.invite": "Cauda Invitation",
+  "cauda.invite_hint": "Paste an mcl1_ Cauda invitation",
+  "cauda.starting": "Starting secure tunnel…",
+  "cauda.connect": "Connect",
+  "cauda.copy_invite": "Copy Cauda Invite",
+  "cauda.copied": "Copied",
+  "cauda.server.label": "Connected via Cauda tunnel"
+}

@@ -1,4 +1,4 @@
-module github.com/tailscale/mclink/helper
+module pe.jas.cauda/helper
 
 go 1.26.5
 

@@ -123,6 +123,7 @@ must switch loaders or wait.
   weave the late `Screen`/`JoinMultiplayerScreen` Mixins), ADR-006 (Quilt
   Loader version floor for MixinExtras compatibility), ADR-007 (on Quilt that
   button's label is translated by merging the mod's lang into a fresh
-  `ClientLanguage` from the same tick hook, because Quilt does not register
-  mod assets as resource packs)
-- **FDRs:** —
+   `ClientLanguage` from the same tick hook, because Quilt does not register
+   mod assets as resource packs), ADR-008 (the mod is branded Cauda; id,
+   package, asset namespace, and authorship were unified under that name)
+ - **FDRs:** —

@@ -1,9 +1,9 @@
-# Tailcarft
+# Cauda
 
-[![Issues](https://git.jas.pe/labs/tailcarft/badges/issues.svg)](https://git.jas.pe/labs/tailcarft/issues)
-[![Releases](https://git.jas.pe/labs/tailcarft/badges/release.svg)](https://git.jas.pe/labs/tailcarft/releases/latest)
-[![Workflows](https://git.jas.pe/labs/tailcarft/badges/workflows/release.yaml/badge.svg)](https://git.jas.pe/labs/tailcarft/actions?workflow=release.yaml&actor=0&status=0)
-[![Commit](https://img.shields.io/gitea/last-commit/labs/tailcarft?gitea_url=https%3A%2F%2Fgit.jas.pe)](https://git.jas.pe/labs/tailcarft/)
+[![Issues](https://git.jas.pe/labs/cauda/badges/issues.svg)](https://git.jas.pe/labs/cauda/issues)
+[![Releases](https://git.jas.pe/labs/cauda/badges/release.svg)](https://git.jas.pe/labs/cauda/releases/latest)
+[![Workflows](https://git.jas.pe/labs/cauda/badges/workflows/release.yaml/badge.svg)](https://git.jas.pe/labs/cauda/actions?workflow=release.yaml&actor=0&status=0)
+[![Commit](https://img.shields.io/gitea/last-commit/labs/cauda?gitea_url=https%3A%2F%2Fgit.jas.pe)](https://git.jas.pe/labs/cauda/)
 
 A Minecraft client mod that shares a single-player world. It uses
 [Tailcat](https://github.com/tailscale/tailcat) for its connecting
@@ -17,9 +17,9 @@ matches your Minecraft version and loader.
 
 ## Use
 
-- **Host:** pause a single-player game, click **Share with Tailcarft**, and
+- **Host:** pause a single-player game, click **Share with Cauda**, and
   copy the `mcl1_...` invitation.
-- **Join:** open Multiplayer and click **Connect with Tailcarft**, or paste the
+- **Join:** open Multiplayer and click **Connect with Cauda**, or paste the
   invitation into any server address field.
 
 **Server workflow.** Sharing publishes your single-player world the same way
@@ -30,7 +30,7 @@ TCP 25565) is exposed. Click **Stop** — or leave the world — to end sharing.
 
 ## Config
 
-Place `mclink.json` in your `config/` directory:
+Place `cauda.json` in your `config/` directory:
 
 ```json
 {
@@ -43,7 +43,7 @@ Place `mclink.json` in your `config/` directory:
 | Key | Required | Meaning |
 | --- | --- | --- |
 | `tailcat` | yes | Invitation — either an `mcl1_...` envelope or a bare `tc...` token |
-| `name` | no | Display name of the pinned multiplayer entry (default: `Tailcarft Server`) |
+| `name` | no | Display name of the pinned multiplayer entry (default: `Cauda Server`) |
 | `icon` | no | A 64x64 PNG in `config/` shown next to the entry; any other size is ignored |
 
 The file stores an invitation so you don't have to paste it every time. With a
@@ -62,7 +62,7 @@ scripts/build-natives.sh
 ```
 
 The twelve jars land in `<loader>-<mc>/build/libs/`, named
-`tailcarft-<version>-<loader>-<mc>.jar`. For Java-only development, point
+`cauda-<version>-<loader>-<mc>.jar`. For Java-only development, point
 `MCLINK_HELPER` at a locally built helper binary instead.
 
 ## Releasing
@@ -76,7 +76,7 @@ published as a pre-release.
 
 ---
 
-Tailcarft was built on top of
+Cauda was built on top of
 [tailcat-for-minecraft](https://github.com/tailscale/tailcat-for-minecraft)
 on GitHub and uses [Tailcat](https://github.com/tailscale/tailcat) for its connecting technology. Its BSD 3-Clause
 license still applies in full — see `LICENSE`.

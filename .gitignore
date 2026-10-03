@@ -18,12 +18,12 @@ mc263/
 mc263full/
 
 # Go build output
-helper/mclink-helper
-helper/mclink-helper.exe
+helper/cauda-helper
+helper/cauda-helper.exe
 helper/bin/
 
 # Generated helper natives (rebuilt by scripts/build-natives.sh)
-common/src/main/resources/assets/mclink/native/
+common/src/main/resources/assets/cauda/native/
 
 # Demo video (kept out of git)
 tailcatmcdemo.mp4

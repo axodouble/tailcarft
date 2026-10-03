@@ -7,7 +7,7 @@
 # Headless GUI smoke test for one loader leaf. Boots the client OFFLINE under
 # Xvfb + Mesa software GL (no GPU, no Mojang auth), opens the Multiplayer
 # screen via the TMC_GUI_SMOKE hook in the leaf's ClientMod, verifies the
-# "join with tailcarft" (mclink.join) button is present, and captures the real
+# "join with cauda" (cauda.join) button is present, and captures the real
 # X11 window (ImageMagick `import`) for visual confirmation.
 #
 # Why `import` and not the in-game Screenshot API: under software rendering the
@@ -118,7 +118,7 @@ echo "${VERDICT:-<none>}"
 # Multiplayer screen (the hook stays up after printing its verdict for this).
 # The in-game GL framebuffer is stuck at the startup splash under software
 # rendering, so the screenshot is taken of the display, not in-game.
-SHOT="$LEAF/run/screenshots/mclink_smoke.png"
+SHOT="$LEAF/run/screenshots/cauda_smoke.png"
 mkdir -p "$LEAF/run/screenshots"
 if kill -0 "$GW" 2>/dev/null && command -v import >/dev/null 2>&1; then
   sleep 2   # let a clean frame present
@@ -133,7 +133,7 @@ fi
 echo "--- log: $LOG ---"
 
 case "$VERDICT" in
-  *joinButton=true*)  echo "RESULT: PASS (mclink.join button present)"; exit 0 ;;
-  *joinButton=false*) echo "RESULT: FAIL (mclink.join button ABSENT)";  exit 1 ;;
+  *joinButton=true*)  echo "RESULT: PASS (cauda.join button present)"; exit 0 ;;
+  *joinButton=false*) echo "RESULT: FAIL (cauda.join button ABSENT)";  exit 1 ;;
   *)                  echo "RESULT: UNKNOWN (no verdict; see log)";      exit 2 ;;
 esac

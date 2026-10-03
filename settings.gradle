@@ -8,7 +8,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'tailcat-for-minecraft'
+rootProject.name = 'cauda-for-minecraft'
 
 def matrix = new Properties()
 file('gradle.properties').withInputStream { matrix.load(it) }

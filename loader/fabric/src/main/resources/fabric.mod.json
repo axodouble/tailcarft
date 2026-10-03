@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "id": "tailcarft",
+  "id": "cauda",
   "version": "${version}",
-  "name": "Tailcarft",
-  "description": "Share Minecraft worlds through Tailcarft's userspace WireGuard transport.",
-  "authors": ["Tailscale", "Jasper \"Axodouble\" V."],
+  "name": "Cauda",
+  "description": "Share a singleplayer Minecraft world with friends over the internet — no dedicated server and no account. Cauda publishes your world the way vanilla Open to LAN does and tunnels the game port through a lightweight userspace WireGuard transport, so friends can join with a short-lived invite.",
+  "authors": ["Jasper \"Axodouble\" V."],
   "license": "BSD-3-Clause",
   "environment": "*",
   "entrypoints": {
-    "client": ["com.tailscale.mclink.FabricClient"],
-    "server": ["com.tailscale.mclink.FabricServer"]
+    "client": ["pe.jas.cauda.FabricClient"],
+    "server": ["pe.jas.cauda.FabricServer"]
   },
-  "mixins": ["mclink.mixins.json"],
+  "mixins": ["cauda.mixins.json"],
   "depends": {
     "fabricloader": ">=0.16.10",
     "minecraft": "~${minecraft_version}",

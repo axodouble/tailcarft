@@ -69,15 +69,15 @@ jobs:
       # Keyed on the whole helper source (and the build script, which pins the
       # Tailscale Go revision), so a hit means the built natives in the cache
       # are exactly up to date and rebuilding/testing is skipped.
-      - name: Cache mclink Go
+      - name: Cache cauda Go
         id: go-cache
         uses: https://data.forgejo.org/actions/cache@v4
         with:
           path: |
-            ~/.cache/mclink/tsgo
+            ~/.cache/cauda/tsgo
             ~/.cache/go-build
             ~/go/pkg/mod
-            common/src/main/resources/assets/mclink/native
+            common/src/main/resources/assets/cauda/native
           key: ${{ runner.os }}-go-${{ hashFiles('helper/**', 'scripts/build-natives.sh') }}
           restore-keys: |
             ${{ runner.os }}-go-
@@ -92,7 +92,7 @@ jobs:
         if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
-          GO=$(find "${XDG_CACHE_HOME:-$HOME/.cache}/mclink/tsgo" \
+          GO=$(find "${XDG_CACHE_HOME:-$HOME/.cache}/cauda/tsgo" \
             -type f \
             -path '*/bin/go' \
             -print -quit)
@@ -126,10 +126,10 @@ jobs:
       - name: Verify helper natives are present
         run: |
           set -euo pipefail
-          root=common/src/main/resources/assets/mclink/native
+          root=common/src/main/resources/assets/cauda/native
           test -f "$root/checksums.json"
           for d in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 windows-arm64; do
-            test -n "$(ls "$root/$d"/mclink-helper* 2>/dev/null)"
+            test -n "$(ls "$root/$d"/cauda-helper* 2>/dev/null)"
           done
 
       # The build cache (under the cached ~/.gradle/caches) stores the
@@ -151,7 +151,7 @@ jobs:
         run: |
           set -euxo pipefail
           version=$(sed -n 's/^mod_version=//p' gradle.properties)
-          base=tailcarft
+          base=cauda
           mkdir -p dist/release
           for loader in fabric neoforge forge quilt; do
             for mc in $(sed -n "s/^targets.${loader}=//p" gradle.properties | tr ',' ' '); do
