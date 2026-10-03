@@ -8,3 +8,4 @@
 | [ADR-004](ADR-004-headless-gui-smoke-test.md) | Headless GUI smoke test drives the client to the multiplayer screen and checks the Connect button | Accepted | 2026-09-27 |
 | [ADR-005](ADR-005-forge-mixin-skips-late-screen-classes.md) | Forge/NeoForge don't weave Mixins into late GUI-screen classes; drive screen UI from an early, always-woven class (Minecraft tick hook) | Accepted | 2026-09-28 |
 | [ADR-006](ADR-006-quilt-loader-mixinextras-version-floor.md) | Quilt Loader version floor 0.30.2-beta.1 (MixinExtras 0.5.5 fixes @Redirect ClassCastException) | Accepted | 2026-09-29 |
+| [ADR-007](ADR-007-quilt-mod-assets-not-resource-packs.md) | Quilt mod assets are not resource packs — merge the mod's lang into a fresh ClientLanguage from the Minecraft tick hook | Accepted | 2026-10-03 |

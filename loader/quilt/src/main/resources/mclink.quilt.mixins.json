@@ -3,7 +3,8 @@
   "package": "com.tailscale.mclink.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "ClientShutdownMixin"
+    "ClientShutdownMixin",
+    "ModLanguageMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

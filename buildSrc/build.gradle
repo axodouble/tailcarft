@@ -18,4 +18,9 @@ dependencies {
     implementation 'net.neoforged.moddev:net.neoforged.moddev.gradle.plugin:2.0.147'
     implementation 'net.minecraftforge.gradle:net.minecraftforge.gradle.gradle.plugin:7.0.40'
     implementation 'org.quiltmc:loom:1.15.1'
+    // Build-time remap for the Forge 1.20.1 leaf (named -> MCP SRG). tiny-remapper
+    // declares mapping-io as a runtime dependency, but the remap task compiles
+    // against mapping-io types directly, so it must be a compile dependency here.
+    implementation 'net.fabricmc:tiny-remapper:0.10.4'
+    implementation 'net.fabricmc:mapping-io:0.5.0'
 }

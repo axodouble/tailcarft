@@ -83,3 +83,110 @@ configurations {
     testCompileClasspath.extendsFrom runtimeClasspath
     testRuntimeClasspath.extendsFrom runtimeClasspath
 }
+
+// Production remap (Mojang official -> MCP SRG), Forge 1.20.1 only.
+//
+// Forge 1.20.1 ships and runs its Minecraft classes in the MCP SRG namespace
+// (Minecraft.m_91087_()), but this mod is compiled against Mojang official
+// names (Minecraft.getInstance()). Without a remap the mod's bytecode calls
+// named methods that do not exist at runtime, so the client dies with
+// NoSuchMethodError on first mod load (issue #33). Forge 1.21.1 and 26.3 run
+// Mojang official names, so only 1.20.1 needs this.
+//
+// A single TinyRemapper pass rewrites the published jar:
+//   mapping    mappings_official map2srg.tsrg (left = Mojang, right = MCP SRG)
+//   classpath  the named recompiled.jar, so TinyRemapper can propagate renames
+//              into this mod's own Screen-subclass overrides
+//   MixinExtension rewrites the @Mixin/@Inject/@Shadow target strings in
+//              lockstep, so no separate refmap is needed
+//
+// The remap replaces the jar in place after the jar task. The dev runClient
+// does not depend on the jar (it loads the mod from the classes dir), so the
+// swap does not affect development (ADR-004). Re-running over an already-
+// remapped jar is a no-op: the named->SRG mapping has no named source to match
+// in an SRG jar, so the bytes are unchanged.
+if (mc == '1.20.1') {
+    def forgeVersion = rootProject.findProperty("forge.${mc}")
+
+    def remapJarToSrg = tasks.register('remapJarToSrg') {
+        group = 'build'
+        description = "Remap the published jar from Mojang official to MCP SRG (Forge ${mc} production runtime)."
+        dependsOn 'jar'
+        outputs.upToDateWhen { false }
+
+        doLast {
+            def inJar = tasks.named('jar').get().archiveFile.get().asFile
+            if (!inJar.exists()) {
+                throw new GradleException("remapJarToSrg: jar not found at ${inJar}.")
+            }
+
+            // Named -> SRG mapping, from the project-local mavenizer repo.
+            def mavenizerDir = rootProject.projectDir.toPath().resolve('.gradle/mavenizer/repo')
+            def mapDir = mavenizerDir.resolve('net/minecraft/mappings_official')
+            def mapCandidates = project.fileTree(dir: mapDir.toFile(),
+                    includes: [mc + '-*/*-map2srg.tsrg.gz']).files
+            if (mapCandidates.size() != 1) {
+                throw new GradleException("remapJarToSrg: expected exactly one map2srg mapping for ${mc} under " +
+                        "${mapDir}, found ${mapCandidates.size()}. Run a ForgeGradle task (e.g. runClient) once " +
+                        'to populate the mavenizer cache.')
+            }
+            def mapFile = mapCandidates.first()
+
+            // Named Minecraft classpath: the very jar the mod was compiled against.
+            def cpJar = project.gradle.gradleUserHomeDir.toPath()
+                    .resolve('caches/minecraftforge/forgegradle/mavenizer/caches')
+                    .resolve("forge/net/minecraftforge/forge/${forgeVersion}/official/${mc}/recompiled.jar")
+            if (!java.nio.file.Files.exists(cpJar)) {
+                throw new GradleException("remapJarToSrg: named Minecraft classpath not found at ${cpJar}. " +
+                        'Run a ForgeGradle task (e.g. runClient) once to populate the Forge cache.')
+            }
+
+            // Load the TSRG mapping (left = Mojang official, right = MCP SRG).
+            def tree = new net.fabricmc.mappingio.tree.MemoryMappingTree()
+            def reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                    new java.util.zip.GZIPInputStream(new java.io.FileInputStream(mapFile)),
+                    java.nio.charset.StandardCharsets.UTF_8))
+            try {
+                net.fabricmc.mappingio.MappingReader.read(reader,
+                        net.fabricmc.mappingio.format.MappingFormat.TSRG_2_FILE, tree)
+            } finally {
+                reader.close()
+            }
+
+            def outJar = layout.buildDirectory.file("tmp/remapJarToSrg/${inJar.name}.remapped").get().asFile.toPath()
+            java.nio.file.Files.createDirectories(outJar.parent)
+            if (java.nio.file.Files.exists(outJar)) {
+                java.nio.file.Files.delete(outJar)
+            }
+
+            def consumer = new net.fabricmc.tinyremapper.OutputConsumerPath.Builder(outJar)
+                    .assumeArchive(true).build()
+            def remapper = net.fabricmc.tinyremapper.TinyRemapper.newRemapper()
+                    .withMappings(net.fabricmc.tinyremapper.TinyUtils.createMappingProvider(tree, 'left', 'right'))
+                    // The map2srg mapping carries field names only (no descriptors),
+                    // so match fields by name instead of name+desc.
+                    .ignoreFieldDesc(true)
+                    .extension(new net.fabricmc.tinyremapper.extension.mixin.MixinExtension())
+                    .build()
+            try {
+                remapper.readInputs(inJar.toPath())
+                remapper.readClassPath(cpJar)
+                consumer.addNonClassFiles(inJar.toPath())
+                remapper.apply(consumer)
+            } finally {
+                consumer.close()
+                remapper.finish()
+            }
+
+            // Replace the published jar in place.
+            java.nio.file.Files.copy(outJar, inJar.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            java.nio.file.Files.delete(outJar)
+            logger.lifecycle("remapJarToSrg: remapped ${inJar.name} to MCP SRG (Forge ${mc}).")
+        }
+    }
+
+    tasks.named('jar') {
+        finalizedBy remapJarToSrg
+    }
+}

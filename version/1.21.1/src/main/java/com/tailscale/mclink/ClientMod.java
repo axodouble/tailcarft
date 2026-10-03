@@ -91,6 +91,11 @@ public final class ClientMod {
     }
 
     private static void addConnectButton(Minecraft client, Screen screen, int width, int height) {
+        // The button is added from two paths (the MultiplayerScreenMixin init
+        // hook and the loader screen-init event); skip when one already ran.
+        if (findButton(screen, "mclink.join") != null) {
+            return;
+        }
         Button direct = findButton(screen, "selectServer.direct");
         if (direct == null) {
             return;
