@@ -141,6 +141,20 @@ jobs:
           ulimit -n
           free -h
 
+      # A cold release build writes ~7-8G (JDKs, Go toolchain, Gradle caches,
+      # decompiled Minecraft artifacts, eight fat jars with bundled natives).
+      # The act runner's volume is small, so fail fast with an actionable
+      # message instead of a cryptic zip I/O error after a long build.
+      - name: Verify the runner has enough free disk
+        run: |
+          set -euo pipefail
+          avail_g=$(( $(df -k --output=avail / | tail -1 | tr -dc 0-9) / 1024 / 1024 ))
+          echo "free space on /: ${avail_g}G"
+          if [ "$avail_g" -lt 10 ]; then
+            echo "runner disk nearly full: ${avail_g}G free, the release build needs ~10G. Free space on the runner host (e.g. docker system prune) or enlarge its volume, then re-run." >&2
+            exit 1
+          fi
+
       # The build cache (under the cached ~/.gradle/caches) stores the
       # expensive loom remap and compile outputs, so a release build that only
       # bumped the mod version reuses them instead of redoing the work.
@@ -148,19 +162,13 @@ jobs:
         env:
           JAVA_HOME: /opt/jdk21
         run: |
-          set -euxo pipefail
+          set -uxo pipefail
           JDKS=-Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
+          # The runner's volume is small; if the build fills it, the jar tasks
+          # die with a cryptic zip I/O error. Snapshot resources on exit so the
+          # exhaustion is visible right next to the failure.
+          trap 'echo "=== runner resources after build (exit $?) ==="; df -h; df -i; free -h' EXIT
           ./gradlew $JDKS -Dorg.gradle.caching=true build --console=plain --stacktrace
-
-      # Snapshot the same resource state after the build; runs even when the
-      # build fails so a resource exhaustion is visible next to the error.
-      - name: Show CI resources after build
-        if: always()
-        run: |
-          df -h
-          df -i
-          ulimit -n
-          free -h
 
       # ─────────────────────────────────────────────────────────────
       # Release
