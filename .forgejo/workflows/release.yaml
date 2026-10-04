@@ -132,6 +132,15 @@ jobs:
             test -n "$(ls "$root/$d"/cauda-helper* 2>/dev/null)"
           done
 
+      # Capture runner resource state before the build to diagnose
+      # environment-dependent failures (disk, inodes, file descriptors, RAM).
+      - name: Show CI resources before build
+        run: |
+          df -h
+          df -i
+          ulimit -n
+          free -h
+
       # The build cache (under the cached ~/.gradle/caches) stores the
       # expensive loom remap and compile outputs, so a release build that only
       # bumped the mod version reuses them instead of redoing the work.
@@ -141,7 +150,17 @@ jobs:
         run: |
           set -euxo pipefail
           JDKS=-Dorg.gradle.java.installations.paths=/opt/jdk17,/opt/jdk21,/opt/jdk25
-          ./gradlew $JDKS -Dorg.gradle.caching=true build --console=plain
+          ./gradlew $JDKS -Dorg.gradle.caching=true build --console=plain --stacktrace
+
+      # Snapshot the same resource state after the build; runs even when the
+      # build fails so a resource exhaustion is visible next to the error.
+      - name: Show CI resources after build
+        if: always()
+        run: |
+          df -h
+          df -i
+          ulimit -n
+          free -h
 
       # ─────────────────────────────────────────────────────────────
       # Release
